@@ -135,7 +135,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
 
     'differential_evolution': {
-        'status': 'coming_soon',
+        'status': 'available',
         'display_name': 'Differential Evolution',
         'class_name': 'DifferentialEvolution',
         'module': 'app.algorithms.differential_evolution',
