@@ -77,7 +77,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
 
     'genetic_algorithm': {
-        'status': 'coming_soon',  # Change to 'available' when implementation is complete
+        'status': 'available',  # Changed from 'coming_soon' to 'available'
         'display_name': 'Genetic Algorithm',
         'class_name': 'GeneticAlgorithm',
         'module': 'app.algorithms.genetic_algorithm',
