@@ -9,6 +9,7 @@ Available Algorithms:
     - ParticleSwarmOptimization: Bio-inspired swarm intelligence algorithm
     - GeneticAlgorithm: Evolutionary algorithm with selection, crossover, and mutation
     - DifferentialEvolution: Population-based algorithm using vector differences
+    - AntColonyOptimization: ACOR algorithm for continuous optimization using archive-based sampling
 
 Usage:
     from app.algorithms import ParticleSwarmOptimization
