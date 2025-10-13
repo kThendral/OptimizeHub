@@ -278,7 +278,7 @@ class AlgorithmExecutor:
 
         info = self.registry[algorithm_name]
 
-        return {
+        details = {
             'name': algorithm_name,
             'display_name': info['display_name'],
             'status': info['status'],
@@ -291,3 +291,9 @@ class AlgorithmExecutor:
                 else 'In development - Coming Soon'
             )
         }
+
+        # Include characteristics if available
+        if 'characteristics' in info:
+            details['characteristics'] = info['characteristics']
+
+        return details

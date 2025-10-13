@@ -157,6 +157,11 @@ class AlgorithmInfo(BaseModel):
         description="Human-readable implementation status message"
     )
 
+    characteristics: Optional[dict] = Field(
+        None,
+        description="Algorithm performance characteristics (speed, accuracy, runtime, use cases)"
+    )
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -170,6 +175,14 @@ class AlgorithmInfo(BaseModel):
                     "w": 0.7,
                     "c1": 1.5,
                     "c2": 1.5
+                },
+                "characteristics": {
+                    "speed": "fast",
+                    "accuracy": "excellent",
+                    "speed_rank": 4,
+                    "accuracy_rank": 4,
+                    "typical_runtime": "0.025-0.030s per iteration",
+                    "best_for": "Quick optimization with excellent accuracy"
                 }
             }
         }
