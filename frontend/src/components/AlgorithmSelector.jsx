@@ -1,11 +1,11 @@
-// Location: frontend/src/components/AlgorithmSelector.jsx
-
 import { useEffect, useState } from 'react';
 import { fetchAlgorithms, executeAlgorithm } from '../api/index.js';
 import ResultsDisplay from './ResultsDisplay';
 import ProblemDefinitionForm from './forms/ProblemDefinitionForm';
 import PSOParametersForm from './forms/PSOParametersForm';
 import GAParametersForm from './forms/GAParametersForm';
+import PresetSelector from './PresetSelector';
+import PresetExplanation from './PresetExplanation';
 
 export default function AlgorithmSelector() {
   const [algorithms, setAlgorithms] = useState([]);
@@ -16,6 +16,9 @@ export default function AlgorithmSelector() {
   
   // Tab state: 'form' or 'yaml'
   const [inputMode, setInputMode] = useState('form');
+  
+  // Preset state
+  const [selectedPreset, setSelectedPreset] = useState(null);
   
   // YAML upload state
   const [yamlFile, setYamlFile] = useState(null);
@@ -225,6 +228,32 @@ export default function AlgorithmSelector() {
     }
   };
 
+  // Handle preset selection
+  const handlePresetSelect = (preset) => {
+    // Save the preset for explanation display
+    setSelectedPreset(preset);
+    
+    // Set algorithm
+    setSelectedAlgorithm(preset.algorithm);
+    
+    // Set problem data
+    setProblemData(preset.problemData);
+    
+    // Set algorithm-specific params
+    if (preset.algorithm === 'particle_swarm' && preset.psoParams) {
+      setPsoParams(preset.psoParams);
+    } else if (preset.algorithm === 'genetic_algorithm' && preset.gaParams) {
+      setGaParams(preset.gaParams);
+    }
+    
+    // Switch to form mode to show the applied configuration
+    setInputMode('form');
+    
+    // Clear any previous results
+    setResult(null);
+    setError(null);
+  };
+
   // Algorithm name mapping for display
   const getAlgorithmDisplayName = (algoKey) => {
     const nameMap = {
@@ -251,7 +280,7 @@ export default function AlgorithmSelector() {
       )}
 
       {/* Input Mode Tabs */}
-      <div className="mb-4 flex border-b border-gray-200">
+      <div className="mb-6 flex border-b border-gray-200">
         <button
           onClick={() => setInputMode('form')}
           className={`px-4 py-2 font-medium transition-colors ${
@@ -277,6 +306,32 @@ export default function AlgorithmSelector() {
       {/* Form Input Mode */}
       {inputMode === 'form' && (
         <>
+          {/* Preset Selector Section */}
+          <div className="mb-6">
+            <PresetSelector onSelectPreset={handlePresetSelect} />
+          </div>
+
+          {/* Preset Explanation (shown when preset is selected) */}
+          {selectedPreset && (
+            <PresetExplanation preset={selectedPreset} />
+          )}
+
+          {/* Configuration Section Header */}
+          {/* Configuration Section Header (only shown when preset is selected) */}
+          {selectedPreset && (
+            <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">✏️</span>
+                <div>
+                  <h4 className="font-semibold text-gray-800">Configuration (Pre-filled from Preset)</h4>
+                  <p className="text-sm text-gray-600">
+                    These values are already optimized for this scenario. You can run as-is or customize them below.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Algorithm Selection */}
           <div className="mb-4">
             <label className="block mb-2 font-medium text-gray-700">
@@ -284,10 +339,16 @@ export default function AlgorithmSelector() {
             </label>
             <select
               value={selectedAlgorithm}
-              onChange={e => setSelectedAlgorithm(e.target.value)}
+              onChange={e => {
+                setSelectedAlgorithm(e.target.value);
+                // Clear preset when manually changing algorithm
+                if (selectedPreset && e.target.value !== selectedPreset.algorithm) {
+                  setSelectedPreset(null);
+                }
+              }}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[color:var(--color-primary)] focus:border-transparent bg-white"
             >
-              <option value="">--Choose Algorithm--</option>
+              <option value="">--Select an algorithm to configure parameters--</option>
               {algorithms.map(algo => (
                 <option key={algo} value={algo}>
                   {getAlgorithmDisplayName(algo)}
@@ -296,35 +357,69 @@ export default function AlgorithmSelector() {
             </select>
           </div>
 
-          {/* Shared Problem Definition Form */}
-          <ProblemDefinitionForm 
-            formData={problemData}
-            onChange={setProblemData}
-          />
-
-          {/* Algorithm-Specific Parameter Forms (Conditional Rendering) */}
-          {selectedAlgorithm === 'particle_swarm' && (
-            <PSOParametersForm 
-              formData={psoParams}
-              onChange={setPsoParams}
-            />
+          {/* Helpful message when no algorithm selected */}
+          {!selectedAlgorithm && !selectedPreset && (
+            <div className="mb-6 p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300 text-center">
+              <div className="text-4xl mb-3">👆</div>
+              <h4 className="font-semibold text-gray-700 mb-2">Ready to optimize?</h4>
+              <p className="text-sm text-gray-600">
+                Choose a <strong>preset</strong> above for a guided experience, or <strong>select an algorithm</strong> to configure manually.
+              </p>
+            </div>
           )}
 
-          {selectedAlgorithm === 'genetic_algorithm' && (
-            <GAParametersForm 
-              formData={gaParams}
-              onChange={setGaParams}
-            />
-          )}
+          {/* Forms only appear when algorithm is selected */}
+          {selectedAlgorithm && (
+            <>
+              {/* Shared Problem Definition Form */}
+              <ProblemDefinitionForm 
+                formData={problemData}
+                onChange={(data) => {
+                  setProblemData(data);
+                  // Clear preset indicator when manually editing
+                  if (selectedPreset) {
+                    setSelectedPreset(null);
+                  }
+                }}
+              />
 
-          {/* Run Button */}
-          <button
-            onClick={handleRun}
-            disabled={!selectedAlgorithm || loading}
-            className="w-full btn-primary hover:opacity-95 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Running...' : 'Run Algorithm'}
-          </button>
+              {/* Algorithm-Specific Parameter Forms (Conditional Rendering) */}
+              {selectedAlgorithm === 'particle_swarm' && (
+                <PSOParametersForm 
+                  formData={psoParams}
+                  onChange={(params) => {
+                    setPsoParams(params);
+                    // Clear preset indicator when manually editing
+                    if (selectedPreset) {
+                      setSelectedPreset(null);
+                    }
+                  }}
+                />
+              )}
+
+              {selectedAlgorithm === 'genetic_algorithm' && (
+                <GAParametersForm 
+                  formData={gaParams}
+                  onChange={(params) => {
+                    setGaParams(params);
+                    // Clear preset indicator when manually editing
+                    if (selectedPreset) {
+                      setSelectedPreset(null);
+                    }
+                  }}
+                />
+              )}
+
+              {/* Run Button - only shown when algorithm is selected */}
+              <button
+                onClick={handleRun}
+                disabled={loading}
+                className="w-full btn-primary hover:opacity-95 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Running...' : 'Run Optimization'}
+              </button>
+            </>
+          )}
         </>
       )}
 
