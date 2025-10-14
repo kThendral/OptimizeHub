@@ -1,56 +1,401 @@
-import { useEffect, useState } from 'react';
-import { fetchAlgorithms, executeAlgorithm } from '../api';
-import ResultsDisplay from './ResultsDisplay';
+// Location: frontend/src/components/AlgorithmSelector.jsx
 
-export default function Dashboard() {
+import { useEffect, useState } from 'react';
+import { fetchAlgorithms, executeAlgorithm } from '../api/index.js';
+import ResultsDisplay from './ResultsDisplay';
+import ProblemDefinitionForm from './forms/ProblemDefinitionForm';
+import PSOParametersForm from './forms/PSOParametersForm';
+import GAParametersForm from './forms/GAParametersForm';
+
+export default function AlgorithmSelector() {
   const [algorithms, setAlgorithms] = useState([]);
   const [selectedAlgorithm, setSelectedAlgorithm] = useState('');
-  const [problem, setProblem] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  
+  // Tab state: 'form' or 'yaml'
+  const [inputMode, setInputMode] = useState('form');
+  
+  // YAML upload state
+  const [yamlFile, setYamlFile] = useState(null);
+  const [yamlContent, setYamlContent] = useState('');
 
+  // Shared problem definition state
+  const [problemData, setProblemData] = useState({
+    fitnessFunction: 'sphere',
+    dimensions: 2,
+    lowerBound: -5,
+    upperBound: 5,
+    objective: 'minimize'
+  });
+
+  // PSO-specific state
+  const [psoParams, setPsoParams] = useState({
+    swarmSize: 30,
+    maxIterations: 50,
+    w: 0.7,
+    c1: 1.5,
+    c2: 1.5
+  });
+
+  // GA-specific state
+  const [gaParams, setGaParams] = useState({
+    populationSize: 50,
+    maxIterations: 50,
+    crossoverRate: 0.8,
+    mutationRate: 0.1,
+    tournamentSize: 3
+  });
+
+  // Load available algorithms on mount
   useEffect(() => {
-    fetchAlgorithms().then(setAlgorithms);
+    fetchAlgorithms()
+      .then(setAlgorithms)
+      .catch(err => setError(`Failed to load algorithms: ${err.message}`));
   }, []);
 
+  // Handle YAML file upload
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setYamlFile(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setYamlContent(event.target.result);
+    };
+    reader.readAsText(file);
+  };
+
+  // Parse YAML content (simple parser - you can use js-yaml library for complex YAML)
+  const parseYAML = (yamlText) => {
+    try {
+      // Simple YAML parser (for basic key-value pairs)
+      // For production, install and use: npm install js-yaml
+      const lines = yamlText.split('\n');
+      const config = {};
+      let currentSection = null;
+
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) return;
+
+        // Check if it's a section header (ends with : and has no spaces before :)
+        const sectionMatch = trimmed.match(/^(\w+):$/);
+        if (sectionMatch) {
+          currentSection = sectionMatch[1];
+          config[currentSection] = {};
+          return;
+        }
+
+        // Key-value pair
+        const kvMatch = trimmed.match(/^(\w+):\s*(.+)$/);
+        if (kvMatch) {
+          const [, key, value] = kvMatch;
+          
+          // Try to parse as number, boolean, or keep as string
+          let parsedValue = value.trim();
+          if (parsedValue === 'true') parsedValue = true;
+          else if (parsedValue === 'false') parsedValue = false;
+          else if (!isNaN(parsedValue) && parsedValue !== '') {
+            parsedValue = Number(parsedValue);
+          } else if (parsedValue.startsWith('[') && parsedValue.endsWith(']')) {
+            // Parse array notation: [1, 2, 3]
+            try {
+              parsedValue = JSON.parse(parsedValue);
+            } catch (e) {
+              // Keep as string if JSON parse fails
+            }
+          }
+          
+          // If we're in a section, add to that section, otherwise add to root
+          if (currentSection) {
+            config[currentSection][key] = parsedValue;
+          } else {
+            config[key] = parsedValue;
+          }
+        }
+      });
+
+      return config;
+    } catch (err) {
+      throw new Error(`YAML parsing error: ${err.message}`);
+    }
+  };
+
+  const handleRunFromYAML = async () => {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const config = parseYAML(yamlContent);
+      
+      // Validate required sections
+      if (!config.algorithm) {
+        throw new Error('YAML must contain "algorithm" field');
+      }
+      if (!config.problem) {
+        throw new Error('YAML must contain "problem" section');
+      }
+      if (!config.params) {
+        throw new Error('YAML must contain "params" section');
+      }
+
+      // Build payload from YAML
+      const payload = {
+        algorithm: config.algorithm,
+        problem: {
+          dimensions: config.problem.dimensions,
+          bounds: config.problem.bounds || Array(config.problem.dimensions).fill([
+            config.problem.lower_bound || -5,
+            config.problem.upper_bound || 5
+          ]),
+          objective: config.problem.objective || 'minimize',
+          fitness_function_name: config.problem.fitness_function
+        },
+        params: config.params
+      };
+
+      console.log('YAML payload:', payload);
+
+      const res = await executeAlgorithm(payload);
+      setResult(res);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRun = async () => {
-    const payload = { algorithm: selectedAlgorithm, problem };
-    const res = await executeAlgorithm(payload);
-    setResult(res);
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      // Build the problem object (shared by all algorithms)
+      const problem = {
+        dimensions: parseInt(problemData.dimensions),
+        bounds: Array(parseInt(problemData.dimensions)).fill([
+          parseFloat(problemData.lowerBound),
+          parseFloat(problemData.upperBound)
+        ]),
+        objective: problemData.objective,
+        fitness_function_name: problemData.fitnessFunction
+      };
+
+      // Build algorithm-specific params
+      let params = {};
+      
+      if (selectedAlgorithm === 'particle_swarm') {
+        params = {
+          swarm_size: parseInt(psoParams.swarmSize),
+          max_iterations: parseInt(psoParams.maxIterations),
+          w: parseFloat(psoParams.w),
+          c1: parseFloat(psoParams.c1),
+          c2: parseFloat(psoParams.c2)
+        };
+      } else if (selectedAlgorithm === 'genetic_algorithm') {
+        params = {
+          population_size: parseInt(gaParams.populationSize),
+          max_iterations: parseInt(gaParams.maxIterations),
+          crossover_rate: parseFloat(gaParams.crossoverRate),
+          mutation_rate: parseFloat(gaParams.mutationRate),
+          tournament_size: parseInt(gaParams.tournamentSize)
+        };
+      }
+
+      // Build the full payload
+      const payload = {
+        algorithm: selectedAlgorithm,
+        problem: problem,
+        params: params
+      };
+
+      console.log('Sending payload:', payload);
+
+      const res = await executeAlgorithm(payload);
+      setResult(res);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Algorithm name mapping for display
+  const getAlgorithmDisplayName = (algoKey) => {
+    const nameMap = {
+      'particle_swarm': 'Particle Swarm Optimization (PSO)',
+      'genetic_algorithm': 'Genetic Algorithm (GA)',
+      'simulated_annealing': 'Simulated Annealing (SA)',
+      'ant_colony': 'Ant Colony Optimization (ACO)',
+      'differential_evolution': 'Differential Evolution (DE)'
+    };
+    return nameMap[algoKey] || algoKey;
   };
 
   return (
-    <div>
-      <h2 className="text-2xl font-semibold text-gray-800 mb-4">Algorithm Dashboard</h2>
-      <div className="mb-4">
-        <label className="block mb-2 font-medium text-gray-700">Select Algorithm:</label>
-        <select
-          value={selectedAlgorithm}
-          onChange={e => setSelectedAlgorithm(e.target.value)}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+    <div className="max-w-4xl mx-auto">
+      <h2 className="text-2xl font-semibold text-primary mb-4">
+        Algorithm Dashboard
+      </h2>
+      
+      {/* Error Display */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+
+      {/* Input Mode Tabs */}
+      <div className="mb-4 flex border-b border-gray-200">
+        <button
+          onClick={() => setInputMode('form')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            inputMode === 'form'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
         >
-          <option value="">Select Algorithm</option>
-          {algorithms.map(a => <option key={a} value={a}>{a}</option>)}
-        </select>
+          Manual Input
+        </button>
+        <button
+          onClick={() => setInputMode('yaml')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            inputMode === 'yaml'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          YAML Upload
+        </button>
       </div>
 
-      <div className="mb-4">
-        <label className="block mb-2 font-medium text-gray-700">Enter Problem:</label>
-        <input
-          type="text"
-          placeholder="Enter problem"
-          value={problem}
-          onChange={e => setProblem(e.target.value)}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-        />
-      </div>
+      {/* Form Input Mode */}
+      {inputMode === 'form' && (
+        <>
+          {/* Algorithm Selection */}
+          <div className="mb-4">
+            <label className="block mb-2 font-medium text-gray-700">
+              Select Algorithm:
+            </label>
+            <select
+              value={selectedAlgorithm}
+              onChange={e => setSelectedAlgorithm(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[color:var(--color-primary)] focus:border-transparent bg-white"
+            >
+              <option value="">--Choose Algorithm--</option>
+              {algorithms.map(algo => (
+                <option key={algo} value={algo}>
+                  {getAlgorithmDisplayName(algo)}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      <button
-        onClick={handleRun}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 mb-6"
-      >
-        Run
-      </button>
+          {/* Shared Problem Definition Form */}
+          <ProblemDefinitionForm 
+            formData={problemData}
+            onChange={setProblemData}
+          />
 
+          {/* Algorithm-Specific Parameter Forms (Conditional Rendering) */}
+          {selectedAlgorithm === 'particle_swarm' && (
+            <PSOParametersForm 
+              formData={psoParams}
+              onChange={setPsoParams}
+            />
+          )}
+
+          {selectedAlgorithm === 'genetic_algorithm' && (
+            <GAParametersForm 
+              formData={gaParams}
+              onChange={setGaParams}
+            />
+          )}
+
+          {/* Run Button */}
+          <button
+            onClick={handleRun}
+            disabled={!selectedAlgorithm || loading}
+            className="w-full btn-primary hover:opacity-95 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Running...' : 'Run Algorithm'}
+          </button>
+        </>
+      )}
+
+      {/* YAML Upload Mode */}
+      {inputMode === 'yaml' && (
+        <div className="mb-6">
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="font-semibold text-gray-700 mb-2">YAML Configuration Format</h3>
+            <pre className="text-xs bg-white p-3 rounded border border-gray-200 overflow-x-auto">
+{`algorithm: particle_swarm
+problem:
+  dimensions: 2
+  fitness_function: sphere
+  lower_bound: -5
+  upper_bound: 5
+  objective: minimize
+params:
+  swarm_size: 30
+  max_iterations: 50
+  w: 0.7
+  c1: 1.5
+  c2: 1.5`}
+            </pre>
+          </div>
+
+          {/* File Upload */}
+          <div className="mb-4">
+            <label className="block mb-2 font-medium text-gray-700">
+              Upload YAML Configuration:
+            </label>
+            <input
+              type="file"
+              accept=".yaml,.yml"
+              onChange={handleFileUpload}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[color:var(--color-primary)] bg-white"
+            />
+            {yamlFile && (
+              <p className="mt-2 text-sm text-gray-600">
+                Loaded: <span className="font-medium">{yamlFile.name}</span>
+              </p>
+            )}
+          </div>
+
+          {/* YAML Content Preview */}
+          {yamlContent && (
+            <div className="mb-4">
+              <label className="block mb-2 font-medium text-gray-700">
+                File Content:
+              </label>
+              <textarea
+                value={yamlContent}
+                onChange={e => setYamlContent(e.target.value)}
+                rows={12}
+                className="w-full p-3 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-[color:var(--color-primary)] bg-white"
+                placeholder="Paste YAML configuration here or upload a file..."
+              />
+            </div>
+          )}
+
+          {/* Run from YAML Button */}
+          <button
+            onClick={handleRunFromYAML}
+            disabled={!yamlContent || loading}
+            className="w-full btn-primary hover:opacity-95 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Running...' : 'Run from YAML'}
+          </button>
+        </div>
+      )}
+
+      {/* Results Display */}
       {result && <ResultsDisplay result={result} />}
     </div>
   );

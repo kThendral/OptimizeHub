@@ -33,19 +33,10 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
             'Particles move through the search space influenced by their own best '
             'position and the swarm\'s global best position.'
         ),
-        'characteristics': {
-            'speed': 'fast',
-            'accuracy': 'excellent',
-            'speed_rank': 4,  # out of 5 stars
-            'accuracy_rank': 4,  # out of 5 stars
-            'typical_runtime': '0.025-0.030s per iteration',
-            'best_for': 'Quick optimization with excellent accuracy, smooth continuous functions'
-        },
         'use_cases': [
             'Continuous optimization',
             'Non-convex problems',
-            'Real-time parameter tuning',
-            'Smooth function optimization'
+            'Multi-modal landscapes'
         ],
         'default_params': {
             'swarm_size': 30,
@@ -86,7 +77,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
 
     'genetic_algorithm': {
-        'status': 'available',
+        'status': 'available',  
         'display_name': 'Genetic Algorithm',
         'class_name': 'GeneticAlgorithm',
         'module': 'app.algorithms.genetic_algorithm',
@@ -95,19 +86,10 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
             'Uses selection, crossover, and mutation operators to evolve '
             'a population of candidate solutions towards better fitness.'
         ),
-        'characteristics': {
-            'speed': 'fastest',
-            'accuracy': 'good',
-            'speed_rank': 5,  # out of 5 stars - FASTEST
-            'accuracy_rank': 3,  # out of 5 stars
-            'typical_runtime': '0.012-0.015s per iteration',
-            'best_for': 'Robust optimization, excels at multi-modal and complex discrete problems'
-        },
         'use_cases': [
-            'Multi-modal optimization',
             'Discrete and continuous optimization',
             'Combinatorial problems',
-            'Complex search spaces with many local optima'
+            'Multi-objective optimization'
         ],
         'default_params': {
             'population_size': 50,
@@ -153,7 +135,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
 
     'differential_evolution': {
-        'status': 'available',
+        'status': 'coming_soon',
         'display_name': 'Differential Evolution',
         'class_name': 'DifferentialEvolution',
         'module': 'app.algorithms.differential_evolution',
@@ -162,19 +144,10 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
             'by combining existing solutions using vector differences. '
             'Particularly effective for continuous optimization problems.'
         ),
-        'characteristics': {
-            'speed': 'fast',
-            'accuracy': 'very good',
-            'speed_rank': 4,  # out of 5 stars
-            'accuracy_rank': 4,  # out of 5 stars
-            'typical_runtime': '0.020-0.030s per iteration',
-            'best_for': 'Global optimization, non-differentiable continuous functions'
-        },
         'use_cases': [
             'Continuous optimization',
             'Global optimization',
-            'Non-differentiable functions',
-            'Numerical optimization'
+            'Non-differentiable functions'
         ],
         'default_params': {
             'population_size': 50,
@@ -262,42 +235,34 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
 
     'ant_colony': {
-        'status': 'available',
+        'status': 'coming_soon',
         'display_name': 'Ant Colony Optimization',
         'class_name': 'AntColonyOptimization',
         'module': 'app.algorithms.ant_colony',
         'description': (
-            'Continuous ACO (ACOR) using solution archives and Gaussian sampling. '
-            'Ants construct solutions by sampling from a weighted archive of good solutions. '
-            'Achieves machine-precision accuracy on smooth functions.'
+            'Inspired by foraging behavior of ants. Ants deposit pheromones '
+            'on paths, and subsequent ants probabilistically choose paths with '
+            'stronger pheromone trails. Excellent for path and graph problems.'
         ),
-        'characteristics': {
-            'speed': 'fast',
-            'accuracy': 'excellent',
-            'speed_rank': 5,  # out of 5 stars - Very fast
-            'accuracy_rank': 5,  # out of 5 stars - Best accuracy
-            'typical_runtime': '0.015-0.020s per iteration',
-            'best_for': 'High-precision optimization on smooth functions, engineering design requiring exact solutions'
-        },
         'use_cases': [
-            'High-precision continuous optimization',
-            'Engineering design optimization',
-            'Smooth function optimization',
-            'Scientific computing'
+            'Traveling salesman problem',
+            'Vehicle routing',
+            'Network routing'
         ],
         'default_params': {
-            'colony_size': 30,
+            'num_ants': 30,
             'max_iterations': 50,
-            'archive_size': 10,
-            'q': 0.01,
-            'xi': 0.85
+            'alpha': 1.0,  # Pheromone importance
+            'beta': 2.0,   # Heuristic importance
+            'evaporation_rate': 0.5,
+            'pheromone_deposit': 1.0
         },
         'parameter_info': {
-            'colony_size': {
+            'num_ants': {
                 'type': 'int',
                 'min': 5,
-                'description': 'Number of ants generating solutions per iteration',
-                'recommendation': '20-50 for most problems'
+                'description': 'Number of ants in the colony',
+                'recommendation': '10-50'
             },
             'max_iterations': {
                 'type': 'int',
@@ -305,24 +270,24 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
                 'max': 100,
                 'description': 'Maximum number of iterations'
             },
-            'archive_size': {
-                'type': 'int',
-                'min': 1,
-                'description': 'Size of solution archive (pheromone memory)',
-                'recommendation': '10-20, must be ≤ colony_size'
-            },
-            'q': {
+            'alpha': {
                 'type': 'float',
                 'min': 0.0,
-                'description': 'Locality of search parameter (intensification)',
-                'recommendation': '0.001-0.1, lower = more intensification'
+                'description': 'Pheromone importance factor',
+                'recommendation': '1.0'
             },
-            'xi': {
+            'beta': {
+                'type': 'float',
+                'min': 0.0,
+                'description': 'Heuristic information importance',
+                'recommendation': '2.0-5.0'
+            },
+            'evaporation_rate': {
                 'type': 'float',
                 'min': 0.0,
                 'max': 1.0,
-                'description': 'Speed of convergence parameter',
-                'recommendation': '0.7-0.95, higher = faster convergence'
+                'description': 'Rate at which pheromone evaporates',
+                'recommendation': '0.1-0.5'
             }
         }
     }

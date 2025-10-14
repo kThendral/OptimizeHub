@@ -1,0 +1,18 @@
+# Sample PSO Configuration for OptimizeHub
+# This file demonstrates how to configure Particle Swarm Optimization
+
+algorithm: particle_swarm
+
+problem:
+  dimensions: 2
+  fitness_function: sphere
+  lower_bound: -5
+  upper_bound: 5
+  objective: minimize
+
+params:
+  swarm_size: 30
+  max_iterations: 50
+  w: 0.7
+  c1: 1.5
+  c2: 1.5

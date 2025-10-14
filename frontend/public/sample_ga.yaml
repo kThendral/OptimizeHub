@@ -1,0 +1,18 @@
+# Sample Genetic Algorithm Configuration for OptimizeHub
+# This file demonstrates how to configure Genetic Algorithm
+
+algorithm: genetic_algorithm
+
+problem:
+  dimensions: 3
+  fitness_function: rastrigin
+  lower_bound: -5.12
+  upper_bound: 5.12
+  objective: minimize
+
+params:
+  population_size: 50
+  max_iterations: 50
+  crossover_rate: 0.8
+  mutation_rate: 0.1
+  tournament_size: 3

@@ -1,0 +1,36 @@
+/* Theme variables following 60/30/10 rule
+   - --color-primary: dominant color (60%)
+   - --color-secondary: supporting color (30%)
+   - --color-accent: accent color (10%)
+   Adjust these to change the app theme.
+*/
+:root {
+  --color-primary: #1B4D3E; /* forest green */
+  --color-secondary: #F6F9F5  ; /* off-white */
+  --color-accent: #E6B325 ; /* gold */
+
+  --text-primary: #0f2a23; /* dark green-ish for text */
+  --muted: #6b7168;
+
+  /* UI tokens */
+  --bg: var(--color-secondary);
+  --card-bg: #ffffff;
+  --button-text: #ffffff;
+  --border: #e6e6e0;
+}
+
+/* Utility classes in addition to Tailwind so components can use variables */
+.bg-app { background-color: var(--bg); }
+.text-primary { color: var(--text-primary); }
+.card { background: var(--card-bg); border: 1px solid var(--border); }
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 85%, black 8%));
+  color: var(--button-text);
+  border: 1px solid #432179;
+}
+
+.btn-accent {
+  background: var(--color-accent);
+  color: #1b2b1a; /* dark text on gold for readability */
+}

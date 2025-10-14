@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function UploadForm({ onRun }) {
+export default function UploadForm({ onRun, onBack }) {
   const [file, setFile] = useState(null);
   const [algorithm, setAlgorithm] = useState("");
   const [params, setParams] = useState({});
@@ -60,12 +60,16 @@ export default function UploadForm({ onRun }) {
         />
       </div>
 
-      <button
-        onClick={handleRun}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300"
-      >
-        Run Algorithm
-      </button>
+      <div className="flex gap-3">
+        <button
+          onClick={handleRun}
+          className="flex-1 btn-primary hover:opacity-95 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300"
+          style={{ borderRadius: '0.5rem' }}
+        >
+          Run Algorithm
+        </button>
+
+      </div>
     </div>
   );
 }

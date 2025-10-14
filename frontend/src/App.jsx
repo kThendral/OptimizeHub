@@ -1,47 +1,49 @@
 import React, { useState } from "react";
 import LandingPage from "./components/LandingPage";
-import Dashboard from "./components/AlgorithmSelector";
-import ProblemSelector from "./components/ProblemSelector";
-import ParameterForm from "./components/ParameterForm";
-import UploadForm from "./components/UploadForm";
-import ResultsDisplay from "./components/ResultsDisplay";
+import AlgorithmSelector from "./components/AlgorithmSelector";
 
 function App() {
-  const [showLanding, setShowLanding] = useState(true);
-  const [results, setResults] = useState(null);
+  const [showLanding, setShowLanding] = useState(() => {
+    try {
+      return window.location.pathname === "/";
+    } catch (e) {
+      return true;
+    }
+  });
 
-  const handleRun = (payload) => {
-    // Simulate API call or handle payload
-    setResults(payload);
+  // Handler to navigate to app view and push history state so browser back works
+  const navigateToApp = () => {
+    try {
+      window.history.pushState({ page: 'app' }, '', '/app');
+    } catch (e) {
+      /* ignore */
+    }
+    setShowLanding(false);
   };
 
+  // Listen for browser back/forward and update view based on path
+  React.useEffect(() => {
+    const onPop = () => {
+      setShowLanding(window.location.pathname === '/');
+    };
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
   if (showLanding) {
-    return <LandingPage onStart={() => setShowLanding(false)} />;
+    return <LandingPage onStart={navigateToApp} />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-blue-600 mb-8 text-center">OptimizeHub</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <ProblemSelector />
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <ParameterForm />
-          </div>
+    <div className="min-h-screen bg-app py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto">
+        <h1 className="text-4xl font-bold text-primary mb-8 text-center">OptimizeHub</h1>
+        
+        {/* Main Algorithm Selector with embedded forms and results */}
+        <div className="card p-6 rounded-lg shadow-md">
+          <AlgorithmSelector />
         </div>
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-          <UploadForm onRun={handleRun} />
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-          <Dashboard />
-        </div>
-        {results && (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <ResultsDisplay result={results} />
-          </div>
-        )}
       </div>
     </div>
   );
