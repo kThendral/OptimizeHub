@@ -71,6 +71,36 @@ export default function AlgorithmSelector() {
       .catch(err => setError(`Failed to load algorithms: ${err.message}`));
   }, []);
 
+  // Initialize real-world problem data when fitness function changes
+  useEffect(() => {
+    if (problemData.fitnessFunction === 'tsp' && !problemData.cities) {
+      // Initialize with default cities
+      setProblemData(prev => ({
+        ...prev,
+        cities: [
+          { name: 'City A', x: 0, y: 0 },
+          { name: 'City B', x: 3, y: 4 },
+          { name: 'City C', x: 7, y: 1 },
+          { name: 'City D', x: 5, y: 6 }
+        ],
+        dimensions: 4
+      }));
+    } else if (problemData.fitnessFunction === 'knapsack' && !problemData.items) {
+      // Initialize with default items
+      setProblemData(prev => ({
+        ...prev,
+        items: [
+          { name: 'Laptop', weight: 3, value: 500 },
+          { name: 'Camera', weight: 2, value: 300 },
+          { name: 'Book', weight: 1, value: 50 },
+          { name: 'Phone', weight: 1, value: 200 }
+        ],
+        capacity: 5,
+        dimensions: 4
+      }));
+    }
+  }, [problemData.fitnessFunction]);
+
   // Handle YAML file upload
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -168,11 +198,22 @@ export default function AlgorithmSelector() {
             config.problem.lower_bound || -5,
             config.problem.upper_bound || 5
           ]),
-          objective: config.problem.objective || 'minimize',
-          fitness_function_name: config.problem.fitness_function
+          objective: config.problem.objective || 'minimize'
         },
         params: config.params
       };
+
+      // Handle real-world problems vs benchmark functions  
+      if (config.problem.problem_type === 'tsp' && config.problem.cities) {
+        payload.problem.problem_type = 'tsp';
+        payload.problem.cities = config.problem.cities;
+      } else if (config.problem.problem_type === 'knapsack' && config.problem.items) {
+        payload.problem.problem_type = 'knapsack';
+        payload.problem.items = config.problem.items;
+        payload.problem.capacity = config.problem.capacity;
+      } else {
+        payload.problem.fitness_function_name = config.problem.fitness_function;
+      }
 
       console.log('YAML payload:', payload);
 
@@ -191,16 +232,30 @@ export default function AlgorithmSelector() {
     setResult(null);
 
     try {
-      // Build the problem object (shared by all algorithms)
+      // Build the problem object
       const problem = {
         dimensions: parseInt(problemData.dimensions),
         bounds: Array(parseInt(problemData.dimensions)).fill([
           parseFloat(problemData.lowerBound),
           parseFloat(problemData.upperBound)
         ]),
-        objective: problemData.objective,
-        fitness_function_name: problemData.fitnessFunction
+        objective: problemData.objective
       };
+
+      // Handle real-world problems vs benchmark functions
+      if (problemData.fitnessFunction === 'tsp' && problemData.cities) {
+        problem.problem_type = 'tsp';
+        problem.cities = problemData.cities;
+        // Don't set fitness_function_name for TSP
+      } else if (problemData.fitnessFunction === 'knapsack' && problemData.items) {
+        problem.problem_type = 'knapsack';
+        problem.items = problemData.items;
+        problem.capacity = parseFloat(problemData.capacity);
+        // Don't set fitness_function_name for Knapsack
+      } else {
+        // Benchmark function
+        problem.fitness_function_name = problemData.fitnessFunction;
+      }
 
       // Build algorithm-specific params
       let params = {};
@@ -237,8 +292,6 @@ export default function AlgorithmSelector() {
         problem: problem,
         params: params
       };
-
-      console.log('Sending payload:', payload);
 
       const res = await executeAlgorithm(payload);
       setResult(res);

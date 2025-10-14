@@ -125,24 +125,28 @@ def add_problem_context_to_result(
     """
     problem_type = problem.get('problem_type')
     
-    if problem_type == 'knapsack' and result.get('best_solution'):
-        # Decode knapsack solution
-        decoded = decode_knapsack_solution(
-            solution=result['best_solution'],
-            items=problem.get('items', []),
-            capacity=problem.get('capacity', 0)
-        )
-        result['knapsack_result'] = decoded
-        result['problem_type'] = 'knapsack'
-        
-    elif problem_type == 'tsp' and result.get('best_solution'):
-        # Decode TSP solution
-        decoded = decode_tsp_solution(
-            solution=result['best_solution'],
-            cities=problem.get('cities', []),
-            total_distance=result.get('best_fitness', 0)
-        )
-        result['tsp_result'] = decoded
-        result['problem_type'] = 'tsp'
+    try:
+        if problem_type == 'knapsack' and result.get('best_solution'):
+            # Decode knapsack solution
+            decoded = decode_knapsack_solution(
+                solution=result['best_solution'],
+                items=problem.get('items', []),
+                capacity=problem.get('capacity', 0)
+            )
+            result['knapsack_result'] = decoded
+            result['problem_type'] = 'knapsack'
+            
+        elif problem_type == 'tsp' and result.get('best_solution'):
+            # Decode TSP solution
+            decoded = decode_tsp_solution(
+                solution=result['best_solution'],
+                cities=problem.get('cities', []),
+                total_distance=result.get('best_fitness', 0)
+            )
+            result['tsp_result'] = decoded
+            result['problem_type'] = 'tsp'
+    except Exception as e:
+        # Silently fail - don't break the response if decoding fails
+        print(f"[WARNING] Failed to decode solution: {str(e)}")
     
     return result

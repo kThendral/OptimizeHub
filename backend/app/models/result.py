@@ -57,6 +57,22 @@ class OptimizationResult(BaseModel):
         description="Error message if status is 'error'"
     )
 
+    # Real-world problem results
+    problem_type: Optional[str] = Field(
+        None,
+        description="Type of problem: 'knapsack', 'tsp', or None for benchmarks"
+    )
+
+    knapsack_result: Optional[dict] = Field(
+        None,
+        description="Decoded knapsack solution with selected items and statistics"
+    )
+
+    tsp_result: Optional[dict] = Field(
+        None,
+        description="Decoded TSP solution with route and distances"
+    )
+
     class Config:
         json_schema_extra = {
             "example": {
