@@ -521,16 +521,6 @@ export default function AlgorithmSelector() {
             />
           )}
 
-
-          {/* Run Button */}
-          <button
-            onClick={handleRun}
-            disabled={!selectedAlgorithm || loading}
-            className="w-full btn-primary hover:opacity-95 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Running...' : 'Run Algorithm'}
-          </button>
-
         </>
       )}
 
