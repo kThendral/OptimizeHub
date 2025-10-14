@@ -4,6 +4,8 @@ import ResultsDisplay from './ResultsDisplay';
 import ProblemDefinitionForm from './forms/ProblemDefinitionForm';
 import PSOParametersForm from './forms/PSOParametersForm';
 import GAParametersForm from './forms/GAParametersForm';
+import KnapsackInputForm from './forms/KnapsackInputForm';
+import TSPInputForm from './forms/TSPInputForm';
 import PresetSelector from './PresetSelector';
 import PresetExplanation from './PresetExplanation';
 
@@ -371,17 +373,35 @@ export default function AlgorithmSelector() {
           {/* Forms only appear when algorithm is selected */}
           {selectedAlgorithm && (
             <>
-              {/* Shared Problem Definition Form */}
-              <ProblemDefinitionForm 
-                formData={problemData}
-                onChange={(data) => {
-                  setProblemData(data);
-                  // Clear preset indicator when manually editing
-                  if (selectedPreset) {
-                    setSelectedPreset(null);
-                  }
-                }}
-              />
+              {/* Shared Problem Definition Form (or Real-World Problem Forms) */}
+              {problemData.fitnessFunction === 'knapsack' ? (
+                <KnapsackInputForm 
+                  formData={problemData}
+                  onChange={(data) => {
+                    setProblemData(data);
+                    if (selectedPreset) setSelectedPreset(null);
+                  }}
+                />
+              ) : problemData.fitnessFunction === 'tsp' ? (
+                <TSPInputForm 
+                  formData={problemData}
+                  onChange={(data) => {
+                    setProblemData(data);
+                    if (selectedPreset) setSelectedPreset(null);
+                  }}
+                />
+              ) : (
+                <ProblemDefinitionForm 
+                  formData={problemData}
+                  onChange={(data) => {
+                    setProblemData(data);
+                    // Clear preset indicator when manually editing
+                    if (selectedPreset) {
+                      setSelectedPreset(null);
+                    }
+                  }}
+                />
+              )}
 
               {/* Algorithm-Specific Parameter Forms (Conditional Rendering) */}
               {selectedAlgorithm === 'particle_swarm' && (

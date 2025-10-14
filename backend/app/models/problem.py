@@ -1,7 +1,7 @@
 """
 Pydantic models for optimization problem input validation.
 """
-from typing import List, Tuple, Optional, Literal
+from typing import List, Tuple, Optional, Literal, Dict, Any
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -35,10 +35,38 @@ class ProblemInput(BaseModel):
         description="Name of the fitness function (e.g., 'sphere', 'rastrigin', 'rosenbrock')"
     )
 
+    # Real-world problem support
+    problem_type: Optional[str] = Field(
+        default=None,
+        description="Type of problem: 'knapsack', 'tsp', or None for benchmarks"
+    )
+
+    # Knapsack problem specific fields
+    items: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="List of items for knapsack problem with {name, weight, value}"
+    )
+
+    capacity: Optional[float] = Field(
+        default=None,
+        description="Maximum capacity for knapsack problem"
+    )
+
+    # TSP problem specific fields
+    cities: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="List of cities for TSP with {name, x, y}"
+    )
+
     @field_validator('bounds')
     @classmethod
     def validate_bounds(cls, v, info):
         """Validate bounds structure and values."""
+        # For real-world problems, bounds will be set by the executor
+        if info.data.get('problem_type') in ['knapsack', 'tsp']:
+            # Bounds will be automatically set to [0, 1] for each dimension
+            return v if v else []
+        
         if 'dimensions' not in info.data:
             return v
 

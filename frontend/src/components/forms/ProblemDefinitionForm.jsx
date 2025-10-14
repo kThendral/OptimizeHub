@@ -7,16 +7,24 @@
 
 export default function ProblemDefinitionForm({ formData, onChange }) {
   const fitnessFunctions = [
-    { value: 'sphere', label: 'Sphere Function', description: 'Simple unimodal function, good for testing' },
-    { value: 'rastrigin', label: 'Rastrigin Function', description: 'Highly multimodal with many local minima' },
-    { value: 'rosenbrock', label: 'Rosenbrock Function', description: 'Narrow valley, tests convergence' },
-    { value: 'ackley', label: 'Ackley Function', description: 'Nearly flat outer region with central peak' },
-    { value: 'griewank', label: 'Griewank Function', description: 'Product and sum components' }
+    // Benchmark Functions
+    { value: 'sphere', label: 'Sphere Function', description: 'Simple unimodal function, good for testing', category: 'Benchmark' },
+    { value: 'rastrigin', label: 'Rastrigin Function', description: 'Highly multimodal with many local minima', category: 'Benchmark' },
+    { value: 'rosenbrock', label: 'Rosenbrock Function', description: 'Narrow valley, tests convergence', category: 'Benchmark' },
+    { value: 'ackley', label: 'Ackley Function', description: 'Nearly flat outer region with central peak', category: 'Benchmark' },
+    { value: 'griewank', label: 'Griewank Function', description: 'Product and sum components', category: 'Benchmark' },
+    
+    // Real-World Problems
+    { value: 'tsp', label: '🚀 Traveling Salesman (TSP)', description: 'Find shortest route through cities', category: 'Real-World' },
+    { value: 'knapsack', label: '🎒 Knapsack Problem', description: 'Maximize value within weight limit', category: 'Real-World' }
   ];
 
   const handleChange = (field, value) => {
     onChange({ ...formData, [field]: value });
   };
+
+  const currentFunction = fitnessFunctions.find(f => f.value === formData.fitnessFunction);
+  const isRealWorldProblem = currentFunction?.category === 'Real-World';
 
   return (
     <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -32,16 +40,29 @@ export default function ProblemDefinitionForm({ formData, onChange }) {
           onChange={e => handleChange('fitnessFunction', e.target.value)}
           className="w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-[color:var(--color-primary)] bg-white text-sm"
         >
-          {fitnessFunctions.map(f => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
+          <optgroup label="📊 Benchmark Functions">
+            {fitnessFunctions.filter(f => f.category === 'Benchmark').map(f => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="🌍 Real-World Problems">
+            {fitnessFunctions.filter(f => f.category === 'Real-World').map(f => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </optgroup>
         </select>
         <p className="text-xs text-gray-500 mt-1">
-          {fitnessFunctions.find(f => f.value === formData.fitnessFunction)?.description}
+          {currentFunction?.description}
         </p>
       </div>
+
+      {/* Only show these fields for benchmark functions */}
+      {!isRealWorldProblem && (
+        <>
 
       {/* Dimensions and Bounds */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -106,6 +127,8 @@ export default function ProblemDefinitionForm({ formData, onChange }) {
           Minimize: find smallest value | Maximize: find largest value
         </p>
       </div>
+        </>
+      )}
     </div>
   );
 }

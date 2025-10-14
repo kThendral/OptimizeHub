@@ -98,22 +98,75 @@ class AlgorithmExecutor:
             )
 
         # Get fitness function
-        fitness_function_name = problem.get('fitness_function_name')
-        if not fitness_function_name:
-            return self._create_error_result(
-                algorithm_name,
-                "Missing 'fitness_function_name' in problem definition",
-                "error"
-            )
+        # Handle real-world problems differently
+        problem_type = problem.get('problem_type')
+        
+        if problem_type == 'knapsack':
+            # Import knapsack fitness function creator
+            from app.core.real_world_problems import create_knapsack_fitness
+            
+            items = problem.get('items', [])
+            capacity = problem.get('capacity', 10)
+            
+            if not items:
+                return self._create_error_result(
+                    algorithm_name,
+                    "Knapsack problem requires 'items' list",
+                    "error"
+                )
+            
+            # Extract weights and values
+            weights = [item['weight'] for item in items]
+            values = [item['value'] for item in items]
+            
+            # Create fitness function
+            fitness_function = create_knapsack_fitness(weights, values, capacity)
+            
+            # Set bounds to [0, 1] for binary selection
+            problem['bounds'] = [(0, 1)] * len(items)
+            problem['dimensions'] = len(items)
+            
+        elif problem_type == 'tsp':
+            # Import TSP fitness function creator
+            from app.core.real_world_problems import create_tsp_fitness
+            
+            cities = problem.get('cities', [])
+            
+            if not cities or len(cities) < 3:
+                return self._create_error_result(
+                    algorithm_name,
+                    "TSP problem requires at least 3 cities",
+                    "error"
+                )
+            
+            # Extract city coordinates
+            city_coords = [(city['x'], city['y']) for city in cities]
+            
+            # Create fitness function
+            fitness_function = create_tsp_fitness(city_coords)
+            
+            # Set bounds to [0, 1] for permutation encoding
+            problem['bounds'] = [(0, 1)] * len(cities)
+            problem['dimensions'] = len(cities)
+            
+        else:
+            # Standard benchmark function
+            fitness_function_name = problem.get('fitness_function_name')
+            if not fitness_function_name:
+                return self._create_error_result(
+                    algorithm_name,
+                    "Missing 'fitness_function_name' in problem definition",
+                    "error"
+                )
 
-        try:
-            fitness_function = get_fitness_function(fitness_function_name)
-        except ValueError as e:
-            return self._create_error_result(
-                algorithm_name,
-                str(e),
-                "error"
-            )
+            try:
+                fitness_function = get_fitness_function(fitness_function_name)
+            except ValueError as e:
+                return self._create_error_result(
+                    algorithm_name,
+                    str(e),
+                    "error"
+                )
 
         # Create problem dictionary for algorithm
         problem_dict = create_problem_dict(
@@ -162,6 +215,10 @@ class AlgorithmExecutor:
             'execution_time': round(execution_time, 3),
             'error_message': None
         }
+
+        # Add problem-specific decoded results for real-world problems
+        from app.core.solution_decoder import add_problem_context_to_result
+        result = add_problem_context_to_result(result, problem)
 
         return result
 
