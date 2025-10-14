@@ -28,6 +28,9 @@ export default function AlgorithmSelector() {
   const [yamlFile, setYamlFile] = useState(null);
   const [yamlContent, setYamlContent] = useState('');
 
+  // Fitness function selector collapse state
+  const [isFitnessFunctionExpanded, setIsFitnessFunctionExpanded] = useState(true);
+
   // Shared problem definition state
   const [problemData, setProblemData] = useState({
     fitnessFunction: 'sphere',
@@ -445,7 +448,70 @@ export default function AlgorithmSelector() {
           {/* Forms only appear when algorithm is selected */}
           {selectedAlgorithm && (
             <>
-              {/* Shared Problem Definition Form (or Real-World Problem Forms) */}
+              {/* Collapsible Fitness Function Selector - Always visible */}
+              <div className="mb-4 p-4 from-purple-50 to-blue-50 rounded-lg border-2 border-purple-200 ">
+                <button
+                  onClick={() => setIsFitnessFunctionExpanded(!isFitnessFunctionExpanded)}
+                  className="w-full flex items-center justify-between text-left font-semibold text-gray-700 hover:text-purple-700 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🎯</span>
+                    <span>Problem Type</span>
+                    <span className="text-sm font-normal text-gray-600">
+                      ({problemData.fitnessFunction === 'tsp' ? '🚀 TSP' : 
+                        problemData.fitnessFunction === 'knapsack' ? '🎒 Knapsack' :
+                        problemData.fitnessFunction.charAt(0).toUpperCase() + problemData.fitnessFunction.slice(1)})
+                    </span>
+                  </div>
+                  <svg
+                    className={`w-5 h-5 transition-transform ${isFitnessFunctionExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isFitnessFunctionExpanded && (
+                  <div className="mt-3 pt-3 border-t border-purple-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-2">
+                      Select Problem/Fitness Function:
+                    </label>
+                    <select
+                      value={problemData.fitnessFunction}
+                      onChange={e => {
+                        setProblemData({ ...problemData, fitnessFunction: e.target.value });
+                        if (selectedPreset) setSelectedPreset(null);
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 bg-white text-sm"
+                    >
+                      <optgroup label="📊 Benchmark Functions">
+                        <option value="sphere">Sphere Function</option>
+                        <option value="rastrigin">Rastrigin Function</option>
+                        <option value="rosenbrock">Rosenbrock Function</option>
+                        <option value="ackley">Ackley Function</option>
+                        <option value="griewank">Griewank Function</option>
+                      </optgroup>
+                      <optgroup label="🌍 Real-World Problems">
+                        <option value="tsp">🚀 Traveling Salesman (TSP)</option>
+                        <option value="knapsack">🎒 Knapsack Problem</option>
+                      </optgroup>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {problemData.fitnessFunction === 'sphere' && '✨ Simple unimodal function, good for testing'}
+                      {problemData.fitnessFunction === 'rastrigin' && '🎢 Highly multimodal with many local minima'}
+                      {problemData.fitnessFunction === 'rosenbrock' && '🌄 Narrow valley, tests convergence'}
+                      {problemData.fitnessFunction === 'ackley' && '🌊 Nearly flat outer region with central peak'}
+                      {problemData.fitnessFunction === 'griewank' && '🔢 Product and sum components'}
+                      {problemData.fitnessFunction === 'tsp' && '🚀 Find shortest route through cities'}
+                      {problemData.fitnessFunction === 'knapsack' && '🎒 Maximize value within weight limit'}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Problem-Specific Configuration Forms */}
               {problemData.fitnessFunction === 'knapsack' ? (
                 <KnapsackInputForm 
                   formData={problemData}
