@@ -8,6 +8,8 @@ import KnapsackInputForm from './forms/KnapsackInputForm';
 import TSPInputForm from './forms/TSPInputForm';
 import PresetSelector from './PresetSelector';
 import PresetExplanation from './PresetExplanation';
+import DEParametersForm from './forms/DEParametersForm';
+
 
 export default function AlgorithmSelector() {
   const [algorithms, setAlgorithms] = useState([]);
@@ -52,6 +54,15 @@ export default function AlgorithmSelector() {
     mutationRate: 0.1,
     tournamentSize: 3
   });
+
+  // DE-specific state
+  const [deParams, setDeParams] = useState({
+    population_size: 50,
+    max_iterations: 50,
+    F: 0.8,
+    CR: 0.9
+  });
+
 
   // Load available algorithms on mount
   useEffect(() => {
@@ -210,7 +221,15 @@ export default function AlgorithmSelector() {
           mutation_rate: parseFloat(gaParams.mutationRate),
           tournament_size: parseInt(gaParams.tournamentSize)
         };
+      } else if (selectedAlgorithm === 'differential_evolution') {
+        params = {
+          population_size: parseInt(deParams.population_size),
+          max_iterations: parseInt(deParams.max_iterations),
+          F: parseFloat(deParams.F),
+          CR: parseFloat(deParams.CR)
+        };
       }
+
 
       // Build the full payload
       const payload = {
@@ -403,6 +422,7 @@ export default function AlgorithmSelector() {
                 />
               )}
 
+
               {/* Algorithm-Specific Parameter Forms (Conditional Rendering) */}
               {selectedAlgorithm === 'particle_swarm' && (
                 <PSOParametersForm 
@@ -440,6 +460,24 @@ export default function AlgorithmSelector() {
               </button>
             </>
           )}
+
+          {selectedAlgorithm === 'differential_evolution' && (
+            <DEParametersForm 
+              formData={deParams}
+              onChange={setDeParams}
+            />
+          )}
+
+
+          {/* Run Button */}
+          <button
+            onClick={handleRun}
+            disabled={!selectedAlgorithm || loading}
+            className="w-full btn-primary hover:opacity-95 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Running...' : 'Run Algorithm'}
+          </button>
+
         </>
       )}
 

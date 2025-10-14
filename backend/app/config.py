@@ -135,7 +135,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
 
     'differential_evolution': {
-        'status': 'coming_soon',
+        'status': 'available',  
         'display_name': 'Differential Evolution',
         'class_name': 'DifferentialEvolution',
         'module': 'app.algorithms.differential_evolution',
@@ -152,8 +152,8 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
         'default_params': {
             'population_size': 50,
             'max_iterations': 50,
-            'F': 0.8,  # Differential weight
-            'CR': 0.9  # Crossover probability
+            'F': 0.8,  
+            'CR': 0.9  
         },
         'parameter_info': {
             'population_size': {

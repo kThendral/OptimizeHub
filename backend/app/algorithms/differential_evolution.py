@@ -209,9 +209,9 @@ class DifferentialEvolution(OptimizationAlgorithm):
 
 
     # --------------------------- Results ---------------------------
-    def get_results(self, iterations: int) -> Dict[str, Any]:
-
-    #Return standard results compatible with GA and test files.
+    def get_results(self, iterations: int = None) -> Dict[str, Any]:
+        if iterations is None:
+            iterations = self.max_iterations  # fallback
         return {
             "algorithm": f"DE/{self.strategy} (CR={self.CR}, F={self.F})",
             "best_solution": self.best_solution,
@@ -222,5 +222,6 @@ class DifferentialEvolution(OptimizationAlgorithm):
             "elapsed_time": time.time() - (self.start_time or time.time()),
             "status": "success"
         }
+
 
 
