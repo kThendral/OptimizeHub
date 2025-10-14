@@ -5,18 +5,18 @@
    Adjust these to change the app theme.
 */
 :root {
-  --color-primary: #1B4D3E; /* forest green */
-  --color-secondary: #F6F9F5  ; /* off-white */
-  --color-accent: #E6B325 ; /* gold */
+  --color-primary: #5B21B6; /* deep violet */
+  --color-secondary: #F3E8FF; /* light purple/lavender */
+  --color-accent: #00D4FF; /* cyan/turquoise */
 
-  --text-primary: #0f2a23; /* dark green-ish for text */
-  --muted: #6b7168;
+  --text-primary: #2E1065; /* very dark purple for text */
+  --muted: #6B7280; /* neutral gray for muted text */
 
   /* UI tokens */
   --bg: var(--color-secondary);
   --card-bg: #ffffff;
   --button-text: #ffffff;
-  --border: #e6e6e0;
+  --border: #E9D5FF; /* light purple border */
 }
 
 /* Utility classes in addition to Tailwind so components can use variables */
@@ -27,10 +27,10 @@
 .btn-primary {
   background: linear-gradient(180deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 85%, black 8%));
   color: var(--button-text);
-  border: 1px solid #432179;
+  border: 1px solid #4C1D95; /* dark purple border */
 }
 
 .btn-accent {
   background: var(--color-accent);
-  color: #1b2b1a; /* dark text on gold for readability */
+  color: #1E293B; /* dark slate for readability on cyan */
 }
