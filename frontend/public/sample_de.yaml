@@ -1,0 +1,39 @@
+# Sample Differential Evolution Configuration for OptimizeHub
+# This file demonstrates how to configure Differential Evolution
+
+algorithm: differential_evolution
+
+problem:
+  dimensions: 3
+  fitness_function: rosenbrock
+  lower_bound: -5
+  upper_bound: 5
+  objective: minimize
+
+params:
+  population_size: 50
+  max_iterations: 50
+  F: 0.8
+  CR: 0.9
+  strategy: rand/1/bin
+  boundary_handling: clip
+
+# Parameter Guide:
+# - F (0 < F <= 2): Controls mutation strength. Higher = more exploration
+#   * 0.5-0.8: Conservative, good for fine-tuning
+#   * 0.8-1.2: Balanced exploration/exploitation
+# 
+# - CR (0 <= CR <= 1): Crossover rate. Higher = more parameter mixing
+#   * 0.9: High diversity (recommended for most problems)
+#   * 0.7: Moderate mixing
+#   * 0.3: Low mixing (exploitation-focused)
+#
+# - strategy options:
+#   * rand/1/bin: Classic DE, random base vector
+#   * best/1/bin: Uses best solution as base (faster convergence)
+#   * rand/2/bin: Uses 5 vectors (more robust)
+#
+# - boundary_handling options:
+#   * clip: Force values within bounds (default)
+#   * reflect: Bounce back from boundaries
+#   * wrap: Wrap around to other side

@@ -1,0 +1,43 @@
+# Sample Ant Colony Optimization (ACOR) Configuration for OptimizeHub
+# This file demonstrates how to configure ACOR for continuous optimization
+
+algorithm: ant_colony
+
+problem:
+  dimensions: 2
+  fitness_function: ackley
+  lower_bound: -5
+  upper_bound: 5
+  objective: minimize
+
+params:
+  colony_size: 30
+  max_iterations: 50
+  archive_size: 10
+  q: 0.01
+  xi: 0.85
+
+# Parameter Guide:
+# - colony_size (>= 5): Number of ants exploring per iteration
+#   * 20-30: Good for most problems
+#   * 50+: Better exploration for complex landscapes
+#
+# - archive_size (1 to colony_size): Best solutions to remember
+#   * 10-20: Balanced memory (recommended)
+#   * 5: Fast convergence, less diversity
+#   * 30+: High diversity, slower convergence
+#
+# - q (> 0, typically 0.001-0.1): Controls search locality
+#   * 0.01: Balanced exploration/exploitation
+#   * 0.001: More exploitation (fine-tuning)
+#   * 0.1: More exploration (multimodal problems)
+#
+# - xi (0 < xi <= 1): Speed of convergence
+#   * 0.85: Balanced (recommended)
+#   * 0.95: Slower, more thorough search
+#   * 0.7: Faster convergence
+
+# ACOR is particularly effective for:
+# - Multimodal problems (many local optima)
+# - Problems requiring balance of exploration/exploitation
+# - Continuous optimization in complex landscapes
