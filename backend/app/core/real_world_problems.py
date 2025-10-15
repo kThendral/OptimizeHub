@@ -100,6 +100,9 @@ def create_knapsack_fitness(
 # ==============================================================================
 # Job Scheduling Problem
 # ==============================================================================
+# NOTE: This problem is implemented but not yet integrated into the UI.
+# Planned for integration after Celery/Redis queuing system is added.
+# Backend functionality is complete and tested.
 
 def create_scheduling_fitness(
     processing_times: List[float],
@@ -143,6 +146,9 @@ def create_scheduling_fitness(
 # ==============================================================================
 # Feature Selection Problem
 # ==============================================================================
+# NOTE: This problem is implemented but not yet integrated into the UI.
+# Planned for integration after Celery/Redis queuing system is added.
+# Backend functionality is complete and tested.
 
 def create_feature_selection_fitness(
     X_train: np.ndarray,
@@ -191,6 +197,9 @@ def create_feature_selection_fitness(
 # ==============================================================================
 # Portfolio Optimization
 # ==============================================================================
+# NOTE: This problem is implemented but not yet integrated into the UI.
+# Planned for integration after Celery/Redis queuing system is added.
+# Backend functionality is complete and tested.
 
 def create_portfolio_fitness(
     returns: np.ndarray,

@@ -235,34 +235,33 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
 
     'ant_colony': {
-        'status': 'coming_soon',
-        'display_name': 'Ant Colony Optimization',
+        'status': 'available',
+        'display_name': 'Ant Colony Optimization for Continuous Domains',
         'class_name': 'AntColonyOptimization',
         'module': 'app.algorithms.ant_colony',
         'description': (
-            'Inspired by foraging behavior of ants. Ants deposit pheromones '
-            'on paths, and subsequent ants probabilistically choose paths with '
-            'stronger pheromone trails. Excellent for path and graph problems.'
+            'ACOR (Ant Colony Optimization for Continuous domains) uses an archive-based '
+            'approach where ants sample solutions from a weighted archive of good solutions '
+            'using Gaussian distributions. Particularly effective for continuous optimization.'
         ),
         'use_cases': [
-            'Traveling salesman problem',
-            'Vehicle routing',
-            'Network routing'
+            'Continuous optimization',
+            'Multi-modal landscapes',
+            'Global optimization'
         ],
         'default_params': {
-            'num_ants': 30,
+            'colony_size': 30,
             'max_iterations': 50,
-            'alpha': 1.0,  # Pheromone importance
-            'beta': 2.0,   # Heuristic importance
-            'evaporation_rate': 0.5,
-            'pheromone_deposit': 1.0
+            'archive_size': 10,
+            'q': 0.01,
+            'xi': 0.85
         },
         'parameter_info': {
-            'num_ants': {
+            'colony_size': {
                 'type': 'int',
                 'min': 5,
                 'description': 'Number of ants in the colony',
-                'recommendation': '10-50'
+                'recommendation': '20-50 for most problems'
             },
             'max_iterations': {
                 'type': 'int',
@@ -270,24 +269,24 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
                 'max': 100,
                 'description': 'Maximum number of iterations'
             },
-            'alpha': {
-                'type': 'float',
-                'min': 0.0,
-                'description': 'Pheromone importance factor',
-                'recommendation': '1.0'
+            'archive_size': {
+                'type': 'int',
+                'min': 1,
+                'description': 'Number of best solutions to keep in archive',
+                'recommendation': '10-50 (must be <= colony_size)'
             },
-            'beta': {
+            'q': {
                 'type': 'float',
-                'min': 0.0,
-                'description': 'Heuristic information importance',
-                'recommendation': '2.0-5.0'
+                'min': 0.001,
+                'description': 'Locality of search parameter (smaller = more focused)',
+                'recommendation': '0.001-0.1'
             },
-            'evaporation_rate': {
+            'xi': {
                 'type': 'float',
                 'min': 0.0,
                 'max': 1.0,
-                'description': 'Rate at which pheromone evaporates',
-                'recommendation': '0.1-0.5'
+                'description': 'Convergence speed parameter',
+                'recommendation': '0.7-0.95'
             }
         }
     }

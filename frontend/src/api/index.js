@@ -12,8 +12,8 @@ export async function fetchAlgorithms() {
     }
     const data = await res.json();
     console.log('Algorithms data:', data);
-    // Return an array of algorithm names (internal keys)
-    return data.algorithms.map(a => a.name);
+    // Return full algorithm objects with status information
+    return data.algorithms;
   } catch (error) {
     console.error('Fetch algorithms error:', error);
     throw error;

@@ -9,8 +9,13 @@ export default function ResultsDisplay({ result }) {
   const hasConvergence = result.convergence_curve && result.convergence_curve.length > 0;
   const initialFitness = hasConvergence ? result.convergence_curve[0] : null;
   const finalFitness = result.best_fitness;
-  const improvement = initialFitness && finalFitness !== null 
-    ? initialFitness - finalFitness 
+  const objective = result.problem?.objective || 'minimize';
+  const isMaximize = objective === 'maximize';
+
+  // For minimize: improvement = initial - final (positive when final < initial)
+  // For maximize: improvement = final - initial (positive when final > initial)
+  const improvement = initialFitness && finalFitness !== null
+    ? (isMaximize ? finalFitness - initialFitness : initialFitness - finalFitness)
     : null;
   const improvementPercent = initialFitness && improvement !== null && initialFitness !== 0
     ? ((improvement / Math.abs(initialFitness)) * 100).toFixed(2)
@@ -21,8 +26,12 @@ export default function ResultsDisplay({ result }) {
     const names = {
       'ParticleSwarmOptimization': 'Particle Swarm Optimization (PSO)',
       'GeneticAlgorithm': 'Genetic Algorithm (GA)',
+      'DifferentialEvolution': 'Differential Evolution (DE)',
+      'AntColonyOptimization': 'Ant Colony Optimization (ACOR)',
       'particle_swarm': 'Particle Swarm Optimization (PSO)',
       'genetic_algorithm': 'Genetic Algorithm (GA)',
+      'differential_evolution': 'Differential Evolution (DE)',
+      'ant_colony': 'Ant Colony Optimization (ACOR)',
     };
     return names[algo] || algo;
   };
@@ -33,6 +42,243 @@ export default function ResultsDisplay({ result }) {
     if (Math.abs(num) < 0.0001) return num.toExponential(4);
     if (Math.abs(num) > 1000000) return num.toExponential(4);
     return num.toFixed(6);
+  };
+
+  // Get dynamic interpretation for metrics
+  const getMetricInterpretation = (metricType, value, context) => {
+    const { objective, improvementPercent, algorithm, problemType } = context;
+    const isMinimize = objective !== 'maximize';
+    const improvePct = parseFloat(improvementPercent) || 0;
+
+    // Helper to get algorithm-specific suggestions
+    const getAlgorithmSuggestion = (algoName) => {
+      if (algoName?.includes('PSO') || algoName?.includes('Particle')) {
+        return 'Try increasing swarm_size or adjusting w (inertia).';
+      } else if (algoName?.includes('GA') || algoName?.includes('Genetic')) {
+        return 'Try increasing population_size or mutation_rate.';
+      } else if (algoName?.includes('ACOR') || algoName?.includes('Ant Colony')) {
+        return 'Try increasing archive_size or adjusting q parameter.';
+      } else if (algoName?.includes('DE') || algoName?.includes('Differential')) {
+        return 'Try adjusting F (scaling factor) or increasing population.';
+      }
+      return 'Try increasing max_iterations or adjusting parameters.';
+    };
+
+    if (metricType === 'initial') {
+      // Initial Fitness Interpretation
+      if (problemType === 'tsp') {
+        return {
+          icon: '🗺️',
+          text: 'Starting route distance before optimization.',
+          color: 'text-blue-600'
+        };
+      } else if (problemType === 'knapsack') {
+        return {
+          icon: '🎒',
+          text: 'Initial value before optimizing item selection.',
+          color: 'text-blue-600'
+        };
+      } else if (value === null) {
+        return { icon: 'ℹ️', text: 'No initial value available.', color: 'text-gray-500' };
+      }
+
+      const absValue = Math.abs(value);
+      if (absValue > 1000) {
+        return {
+          icon: '🎯',
+          text: 'Started far from optimum. Good room for improvement.',
+          color: 'text-blue-600'
+        };
+      } else if (absValue > 10) {
+        return {
+          icon: '📍',
+          text: 'Moderate starting point in the search space.',
+          color: 'text-blue-600'
+        };
+      } else if (absValue > 0.1) {
+        return {
+          icon: '✨',
+          text: 'Started relatively close to the optimal region.',
+          color: 'text-blue-600'
+        };
+      } else {
+        return {
+          icon: '🎲',
+          text: 'Very close starting point - good initialization.',
+          color: 'text-blue-600'
+        };
+      }
+    } else if (metricType === 'final') {
+      // Final Fitness Interpretation
+      if (problemType === 'tsp') {
+        if (improvePct > 50) {
+          return {
+            icon: '✅',
+            text: `Route optimized by ${improvePct.toFixed(1)}% - excellent pathfinding!`,
+            color: 'text-green-600'
+          };
+        } else {
+          return {
+            icon: '⚠️',
+            text: `Limited route improvement. ${getAlgorithmSuggestion(algorithm)}`,
+            color: 'text-orange-600'
+          };
+        }
+      } else if (problemType === 'knapsack') {
+        if (improvePct > 50) {
+          return {
+            icon: '💰',
+            text: `Value increased by ${improvePct.toFixed(1)}% - great optimization!`,
+            color: 'text-green-600'
+          };
+        } else {
+          return {
+            icon: '⚠️',
+            text: `Small value improvement. ${getAlgorithmSuggestion(algorithm)}`,
+            color: 'text-orange-600'
+          };
+        }
+      } else if (value === null) {
+        return { icon: 'ℹ️', text: 'No final value available.', color: 'text-gray-500' };
+      }
+
+      const absValue = Math.abs(value);
+      if (isMinimize) {
+        if (absValue < 0.001) {
+          return {
+            icon: '🎯',
+            text: 'Excellent! Nearly reached global optimum (0).',
+            color: 'text-green-600'
+          };
+        } else if (absValue < 0.1) {
+          return {
+            icon: '✓',
+            text: 'Very good result - close to optimum.',
+            color: 'text-green-600'
+          };
+        } else if (absValue < 10) {
+          return {
+            icon: '📊',
+            text: improvePct > 90 ? 'Good convergence achieved.' : 'Decent result, but could improve further.',
+            color: improvePct > 90 ? 'text-blue-600' : 'text-yellow-600'
+          };
+        } else {
+          return {
+            icon: '⚠️',
+            text: `Didn't converge well. ${getAlgorithmSuggestion(algorithm)}`,
+            color: 'text-orange-600'
+          };
+        }
+      } else {
+        // Maximize - judge based on improvement percentage
+        if (improvePct > 90) {
+          return {
+            icon: '🎯',
+            text: `Excellent maximization! ${improvePct.toFixed(1)}% increase achieved.`,
+            color: 'text-green-600'
+          };
+        } else if (improvePct > 50) {
+          return {
+            icon: '✓',
+            text: `Good maximum found with ${improvePct.toFixed(1)}% improvement.`,
+            color: 'text-green-600'
+          };
+        } else if (improvePct > 0) {
+          return {
+            icon: '📊',
+            text: `Moderate maximization (${improvePct.toFixed(1)}%). Could improve further.`,
+            color: 'text-yellow-600'
+          };
+        } else {
+          return {
+            icon: '⚠️',
+            text: `Poor maximization. ${getAlgorithmSuggestion(algorithm)}`,
+            color: 'text-orange-600'
+          };
+        }
+      }
+    } else if (metricType === 'reduction') {
+      // Total Improvement/Reduction Interpretation
+      const actionWord = isMinimize ? 'reduced' : 'increased';
+      const nounWord = isMinimize ? 'reduction' : 'increase';
+
+      if (problemType === 'tsp') {
+        return {
+          icon: improvePct > 50 ? '🚀' : '📉',
+          text: improvePct > 50
+            ? `Distance ${actionWord} by ${improvePct.toFixed(1)}% - efficient routing!`
+            : `Only ${improvePct.toFixed(1)}% improvement. Try more iterations.`,
+          color: improvePct > 50 ? 'text-purple-600' : 'text-orange-600'
+        };
+      } else if (problemType === 'knapsack') {
+        return {
+          icon: improvePct > 50 ? '💎' : '📉',
+          text: improvePct > 50
+            ? `Value improved by ${improvePct.toFixed(1)}% - great selection!`
+            : `Small value gain of ${improvePct.toFixed(1)}%. Adjust parameters.`,
+          color: improvePct > 50 ? 'text-purple-600' : 'text-orange-600'
+        };
+      } else if (value === null) {
+        return { icon: 'ℹ️', text: 'No improvement data available.', color: 'text-gray-500' };
+      }
+
+      // Handle negative improvement (algorithm performed poorly)
+      if (improvePct < 0) {
+        return {
+          icon: '❌',
+          text: isMinimize
+            ? `Fitness increased by ${Math.abs(improvePct).toFixed(1)}% instead of decreasing. Algorithm failed to minimize.`
+            : `Fitness decreased by ${Math.abs(improvePct).toFixed(1)}% instead of increasing. Algorithm failed to maximize.`,
+          color: 'text-red-600'
+        };
+      }
+
+      if (improvePct > 99) {
+        return {
+          icon: '🌟',
+          text: `${isMinimize ? 'Reduced' : 'Increased'} by ${improvePct.toFixed(2)}% - near-perfect optimization!`,
+          color: 'text-purple-600'
+        };
+      } else if (improvePct > 95) {
+        return {
+          icon: '✨',
+          text: `${isMinimize ? 'Reduced' : 'Increased'} by ${improvePct.toFixed(1)}% - excellent convergence.`,
+          color: 'text-purple-600'
+        };
+      } else if (improvePct > 80) {
+        return {
+          icon: '✓',
+          text: `Good ${improvePct.toFixed(1)}% ${nounWord}. Algorithm performed well.`,
+          color: 'text-blue-600'
+        };
+      } else if (improvePct > 50) {
+        return {
+          icon: '📊',
+          text: `Moderate ${improvePct.toFixed(1)}% improvement. Consider more iterations.`,
+          color: 'text-yellow-600'
+        };
+      } else if (improvePct > 20) {
+        return {
+          icon: '⚠️',
+          text: `Low ${improvePct.toFixed(1)}% improvement. ${getAlgorithmSuggestion(algorithm)}`,
+          color: 'text-orange-600'
+        };
+      } else if (improvePct > 0) {
+        return {
+          icon: '⚠️',
+          text: `Very low ${improvePct.toFixed(1)}% improvement. Increase max_iterations significantly.`,
+          color: 'text-red-600'
+        };
+      } else {
+        return {
+          icon: 'ℹ️',
+          text: 'No improvement detected.',
+          color: 'text-gray-500'
+        };
+      }
+    }
+
+    return { icon: 'ℹ️', text: '', color: 'text-gray-500' };
   };
 
   return (
@@ -229,12 +475,14 @@ export default function ResultsDisplay({ result }) {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Convergence Status:</span>
                   <span className={`font-semibold ${
+                    parseFloat(improvementPercent) < 0 ? 'text-red-600' :
                     parseFloat(improvementPercent) > 99 ? 'text-green-600' :
                     parseFloat(improvementPercent) > 90 ? 'text-blue-600' :
                     parseFloat(improvementPercent) > 50 ? 'text-yellow-600' :
                     'text-orange-600'
                   }`}>
-                    {parseFloat(improvementPercent) > 99 ? '✅ Excellent (>99%)' :
+                    {parseFloat(improvementPercent) < 0 ? '❌ Failed (negative improvement)' :
+                     parseFloat(improvementPercent) > 99 ? '✅ Excellent (>99%)' :
                      parseFloat(improvementPercent) > 90 ? '✓ Very Good (>90%)' :
                      parseFloat(improvementPercent) > 50 ? '⚠ Moderate (>50%)' :
                      '⚠ Low (<50%)'}
@@ -249,7 +497,7 @@ export default function ResultsDisplay({ result }) {
                 {result.convergence_curve && result.convergence_curve.length > 10 && (
                   <div className="mt-3 pt-3 border-t border-blue-200">
                     <p className="text-xs text-gray-600 leading-relaxed">
-                      <strong>How to interpret:</strong> The algorithm reduced the fitness from{' '}
+                      <strong>How to interpret:</strong> The algorithm {isMaximize ? 'increased' : 'reduced'} the fitness from{' '}
                       <span className="font-mono bg-white px-1 rounded">{formatNumber(initialFitness)}</span> to{' '}
                       <span className="font-mono bg-white px-1 rounded">{formatNumber(finalFitness)}</span>.
                       {parseFloat(improvementPercent) > 99 ? (
@@ -267,19 +515,68 @@ export default function ResultsDisplay({ result }) {
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Initial Fitness */}
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <p className="text-xs text-gray-600 uppercase font-semibold mb-1">Initial Fitness</p>
-                <p className="text-xl font-bold text-gray-800">{formatNumber(initialFitness)}</p>
+                <p className="text-xl font-bold text-gray-800 mb-2">{formatNumber(initialFitness)}</p>
+                {(() => {
+                  const interpretation = getMetricInterpretation('initial', initialFitness, {
+                    objective: result.problem?.objective || 'minimize',
+                    improvementPercent,
+                    algorithm: getAlgoName(result.algorithm),
+                    problemType: result.problem_type
+                  });
+                  return (
+                    <div className={`flex items-start gap-1 text-xs ${interpretation.color} mt-2 pt-2 border-t border-blue-300`}>
+                      <span className="text-sm">{interpretation.icon}</span>
+                      <p className="leading-tight">{interpretation.text}</p>
+                    </div>
+                  );
+                })()}
               </div>
+
+              {/* Final Fitness */}
               <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                 <p className="text-xs text-gray-600 uppercase font-semibold mb-1">Final Fitness</p>
-                <p className="text-xl font-bold text-green-600">{formatNumber(finalFitness)}</p>
+                <p className="text-xl font-bold text-green-600 mb-2">{formatNumber(finalFitness)}</p>
+                {(() => {
+                  const interpretation = getMetricInterpretation('final', finalFitness, {
+                    objective: result.problem?.objective || 'minimize',
+                    improvementPercent,
+                    algorithm: getAlgoName(result.algorithm),
+                    problemType: result.problem_type
+                  });
+                  return (
+                    <div className={`flex items-start gap-1 text-xs ${interpretation.color} mt-2 pt-2 border-t border-green-300`}>
+                      <span className="text-sm">{interpretation.icon}</span>
+                      <p className="leading-tight">{interpretation.text}</p>
+                    </div>
+                  );
+                })()}
               </div>
+
+              {/* Total Improvement/Reduction */}
               <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                <p className="text-xs text-gray-600 uppercase font-semibold mb-1">Total Reduction</p>
-                <p className="text-xl font-bold text-purple-600">
+                <p className="text-xs text-gray-600 uppercase font-semibold mb-1">
+                  {isMaximize ? 'Total Increase' : 'Total Reduction'}
+                </p>
+                <p className="text-xl font-bold text-purple-600 mb-2">
                   {improvement !== null ? formatNumber(Math.abs(improvement)) : 'N/A'}
                 </p>
+                {(() => {
+                  const interpretation = getMetricInterpretation('reduction', improvement, {
+                    objective: result.problem?.objective || 'minimize',
+                    improvementPercent,
+                    algorithm: getAlgoName(result.algorithm),
+                    problemType: result.problem_type
+                  });
+                  return (
+                    <div className={`flex items-start gap-1 text-xs ${interpretation.color} mt-2 pt-2 border-t border-purple-300`}>
+                      <span className="text-sm">{interpretation.icon}</span>
+                      <p className="leading-tight">{interpretation.text}</p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

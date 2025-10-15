@@ -9,6 +9,7 @@ import TSPInputForm from './forms/TSPInputForm';
 import PresetSelector from './PresetSelector';
 import PresetExplanation from './PresetExplanation';
 import DEParametersForm from './forms/DEParametersForm';
+import ACORParametersForm from './forms/ACORParametersForm';
 
 
 export default function AlgorithmSelector() {
@@ -64,6 +65,15 @@ export default function AlgorithmSelector() {
     max_iterations: 50,
     F: 0.8,
     CR: 0.9
+  });
+
+  // ACOR-specific state
+  const [acorParams, setAcorParams] = useState({
+    colony_size: 30,
+    max_iterations: 50,
+    archive_size: 10,
+    q: 0.01,
+    xi: 0.85
   });
 
 
@@ -262,7 +272,7 @@ export default function AlgorithmSelector() {
 
       // Build algorithm-specific params
       let params = {};
-      
+
       if (selectedAlgorithm === 'particle_swarm') {
         params = {
           swarm_size: parseInt(psoParams.swarmSize),
@@ -285,6 +295,14 @@ export default function AlgorithmSelector() {
           max_iterations: parseInt(deParams.max_iterations),
           F: parseFloat(deParams.F),
           CR: parseFloat(deParams.CR)
+        };
+      } else if (selectedAlgorithm === 'ant_colony') {
+        params = {
+          colony_size: parseInt(acorParams.colony_size),
+          max_iterations: parseInt(acorParams.max_iterations),
+          archive_size: parseInt(acorParams.archive_size),
+          q: parseFloat(acorParams.q),
+          xi: parseFloat(acorParams.xi)
         };
       }
 
@@ -321,6 +339,10 @@ export default function AlgorithmSelector() {
       setPsoParams(preset.psoParams);
     } else if (preset.algorithm === 'genetic_algorithm' && preset.gaParams) {
       setGaParams(preset.gaParams);
+    } else if (preset.algorithm === 'differential_evolution' && preset.deParams) {
+      setDeParams(preset.deParams);
+    } else if (preset.algorithm === 'ant_colony' && preset.acorParams) {
+      setAcorParams(preset.acorParams);
     }
     
     // Switch to form mode to show the applied configuration
@@ -337,10 +359,21 @@ export default function AlgorithmSelector() {
       'particle_swarm': 'Particle Swarm Optimization (PSO)',
       'genetic_algorithm': 'Genetic Algorithm (GA)',
       'simulated_annealing': 'Simulated Annealing (SA)',
-      'ant_colony': 'Ant Colony Optimization (ACO)',
+      'ant_colony': 'Ant Colony Optimization for Continuous Domains (ACOR)',
       'differential_evolution': 'Differential Evolution (DE)'
     };
     return nameMap[algoKey] || algoKey;
+  };
+
+  // Get the selected algorithm object
+  const getSelectedAlgorithmObject = () => {
+    return algorithms.find(algo => algo.name === selectedAlgorithm);
+  };
+
+  // Check if selected algorithm is coming soon
+  const isAlgorithmComingSoon = () => {
+    const algoObj = getSelectedAlgorithmObject();
+    return algoObj && algoObj.status === 'coming_soon';
   };
 
   return (
@@ -427,8 +460,9 @@ export default function AlgorithmSelector() {
             >
               <option value="">--Select an algorithm to configure parameters--</option>
               {algorithms.map(algo => (
-                <option key={algo} value={algo}>
-                  {getAlgorithmDisplayName(algo)}
+                <option key={algo.name} value={algo.name}>
+                  {algo.display_name}
+                  {algo.status === 'coming_soon' ? ' (Coming Soon)' : ''}
                 </option>
               ))}
             </select>
@@ -446,7 +480,37 @@ export default function AlgorithmSelector() {
           )}
 
           {/* Forms only appear when algorithm is selected */}
-          {selectedAlgorithm && (
+          {selectedAlgorithm && isAlgorithmComingSoon() && (
+            <div className="mb-6 p-8 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg border-2 border-yellow-300 shadow-lg">
+              <div className="text-center">
+                <div className="text-6xl mb-4">🚧</div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-3">
+                  Algorithm Not Yet Implemented
+                </h3>
+                <p className="text-lg text-gray-700 mb-4">
+                  <strong>{getSelectedAlgorithmObject()?.display_name}</strong> is currently under development.
+                </p>
+                <div className="bg-white rounded-lg p-4 mb-4 border border-yellow-200">
+                  <p className="text-gray-600 mb-2">
+                    This algorithm will be available soon! In the meantime, please choose one of our available algorithms:
+                  </p>
+                  <ul className="text-left text-gray-700 space-y-1 mt-3">
+                    {algorithms.filter(a => a.status === 'available').map(algo => (
+                      <li key={algo.name} className="flex items-center gap-2">
+                        <span className="text-green-500">✓</span>
+                        <span>{algo.display_name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p className="text-sm text-gray-600 italic">
+                  Please select another algorithm from the dropdown above to continue.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {selectedAlgorithm && !isAlgorithmComingSoon() && (
             <>
               {/* Collapsible Fitness Function Selector - Always visible */}
               <div className="mb-4 p-4 from-purple-50 to-blue-50 rounded-lg border-2 border-purple-200 ">
@@ -557,11 +621,35 @@ export default function AlgorithmSelector() {
               )}
 
               {selectedAlgorithm === 'genetic_algorithm' && (
-                <GAParametersForm 
+                <GAParametersForm
                   formData={gaParams}
                   onChange={(params) => {
                     setGaParams(params);
                     // Clear preset indicator when manually editing
+                    if (selectedPreset) {
+                      setSelectedPreset(null);
+                    }
+                  }}
+                />
+              )}
+
+              {selectedAlgorithm === 'differential_evolution' && (
+                <DEParametersForm
+                  formData={deParams}
+                  onChange={(params) => {
+                    setDeParams(params);
+                    if (selectedPreset) {
+                      setSelectedPreset(null);
+                    }
+                  }}
+                />
+              )}
+
+              {selectedAlgorithm === 'ant_colony' && (
+                <ACORParametersForm
+                  formData={acorParams}
+                  onChange={(params) => {
+                    setAcorParams(params);
                     if (selectedPreset) {
                       setSelectedPreset(null);
                     }
@@ -578,13 +666,6 @@ export default function AlgorithmSelector() {
                 {loading ? 'Running...' : 'Run Optimization'}
               </button>
             </>
-          )}
-
-          {selectedAlgorithm === 'differential_evolution' && (
-            <DEParametersForm 
-              formData={deParams}
-              onChange={setDeParams}
-            />
           )}
 
         </>

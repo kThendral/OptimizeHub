@@ -115,16 +115,23 @@ def add_problem_context_to_result(
 ) -> Dict[str, Any]:
     """
     Add problem-specific context to optimization result.
-    
+
     Args:
         result: Raw optimization result
         problem: Problem definition
-        
+
     Returns:
         Enhanced result with decoded solutions
     """
     problem_type = problem.get('problem_type')
-    
+    objective = problem.get('objective', 'minimize')
+
+    # Always add problem metadata to result
+    result['problem'] = {
+        'objective': objective,
+        'problem_type': problem_type
+    }
+
     try:
         if problem_type == 'knapsack' and result.get('best_solution'):
             # Decode knapsack solution
@@ -135,7 +142,7 @@ def add_problem_context_to_result(
             )
             result['knapsack_result'] = decoded
             result['problem_type'] = 'knapsack'
-            
+
         elif problem_type == 'tsp' and result.get('best_solution'):
             # Decode TSP solution
             decoded = decode_tsp_solution(
@@ -148,5 +155,5 @@ def add_problem_context_to_result(
     except Exception as e:
         # Silently fail - don't break the response if decoding fails
         print(f"[WARNING] Failed to decode solution: {str(e)}")
-    
+
     return result
