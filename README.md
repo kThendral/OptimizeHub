@@ -6,6 +6,13 @@
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![React](https://img.shields.io/badge/react-19.1.1-blue.svg)
 
+> **📖 New to OptimizeHub?** Read [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for a comprehensive guide covering:
+> - What this project does and why it exists
+> - Complete feature list and implementation status
+> - Future plans including AI/LLM integration for intelligent explanations
+> - Use cases for academia (teaching & research) and businesses (logistics, resource management)
+> - Technical specifications and roadmap
+
 ---
 
 ## ✨ Features
@@ -34,6 +41,8 @@
 - [YAML Configuration](#-yaml-configuration)
 - [Contributing](#-contributing)
 - [License](#-license)
+
+> **📖 Want a comprehensive overview?** Check out [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for detailed information about completed features, future enhancements (including LLM integration), and use cases for academia and businesses.
 
 ---
 
@@ -399,6 +408,7 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for more details.
 ## 📚 Documentation
 
 - **API Documentation**: http://localhost:8000/docs (when backend is running)
+- **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** - Comprehensive project guide with future plans
 - **Component Structure**: [COMPONENT_STRUCTURE.md](frontend/COMPONENT_STRUCTURE.md)
 - **Recent Changes**: [CLEANUP_AND_YAML_SUMMARY.md](CLEANUP_AND_YAML_SUMMARY.md)
 - **Troubleshooting**: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
