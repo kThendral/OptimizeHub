@@ -408,6 +408,7 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for more details.
 ## 📚 Documentation
 
 - **API Documentation**: http://localhost:8000/docs (when backend is running)
+- **[FEATURE_SUMMARY.md](FEATURE_SUMMARY.md)** - Quick reference guide (start here!)
 - **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** - Comprehensive project guide with future plans
 - **Component Structure**: [COMPONENT_STRUCTURE.md](frontend/COMPONENT_STRUCTURE.md)
 - **Recent Changes**: [CLEANUP_AND_YAML_SUMMARY.md](CLEANUP_AND_YAML_SUMMARY.md)
