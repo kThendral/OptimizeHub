@@ -392,16 +392,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ✅ Check that `algorithm`, `problem`, and `params` sections exist
 - ✅ Verify parameter names match backend expectations
 
-See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for more details.
-
 ---
 
 ## 📚 Documentation
 
 - **API Documentation**: http://localhost:8000/docs (when backend is running)
-- **Component Structure**: [COMPONENT_STRUCTURE.md](frontend/COMPONENT_STRUCTURE.md)
-- **Recent Changes**: [CLEANUP_AND_YAML_SUMMARY.md](CLEANUP_AND_YAML_SUMMARY.md)
-- **Troubleshooting**: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 ---
 
