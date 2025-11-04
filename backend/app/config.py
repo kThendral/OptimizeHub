@@ -186,7 +186,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
 
     'simulated_annealing': {
-        'status': 'coming_soon',
+        'status': 'available',
         'display_name': 'Simulated Annealing',
         'class_name': 'SimulatedAnnealing',
         'module': 'app.algorithms.simulated_annealing',
@@ -195,41 +195,56 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
             'Accepts worse solutions with decreasing probability to escape local minima.'
         ),
         'use_cases': [
-            'Discrete optimization',
-            'Combinatorial problems',
+            'Continuous optimization',
+            'Rugged landscapes',
             'Avoiding local minima'
         ],
         'default_params': {
-            'initial_temperature': 100.0,
+            'initial_temp': 100.0,
+            'final_temp': 0.01,
             'cooling_rate': 0.95,
             'max_iterations': 50,
-            'min_temperature': 0.01
+            'neighbor_std': 0.1,
+            'cooling_schedule': 'geometric'
         },
         'parameter_info': {
-            'initial_temperature': {
+            'initial_temp': {
                 'type': 'float',
                 'min': 0.1,
                 'description': 'Starting temperature (higher = more exploration)',
                 'recommendation': '10-1000 depending on problem scale'
             },
+            'final_temp': {
+                'type': 'float',
+                'min': 0.0,
+                'description': 'Temperature at which to stop',
+                'recommendation': '0.001-0.1'
+            },
             'cooling_rate': {
                 'type': 'float',
                 'min': 0.0,
                 'max': 1.0,
-                'description': 'Rate at which temperature decreases',
-                'recommendation': '0.9-0.99'
+                'description': 'Rate at which temperature decreases (geometric)',
+                'recommendation': '0.85-0.99'
             },
             'max_iterations': {
                 'type': 'int',
                 'min': 1,
                 'max': 100,
-                'description': 'Maximum number of iterations'
+                'description': 'Iterations per temperature level'
             },
-            'min_temperature': {
+            'neighbor_std': {
                 'type': 'float',
                 'min': 0.0,
-                'description': 'Temperature at which to stop',
-                'recommendation': '0.001-0.1'
+                'max': 1.0,
+                'description': 'Step size for neighbor generation',
+                'recommendation': '0.01-0.5'
+            },
+            'cooling_schedule': {
+                'type': 'str',
+                'options': ['geometric', 'linear', 'logarithmic'],
+                'description': 'Cooling schedule type',
+                'recommendation': 'geometric (default, fast convergence)'
             }
         }
     },

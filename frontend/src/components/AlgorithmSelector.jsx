@@ -10,6 +10,7 @@ import PresetSelector from './PresetSelector';
 import PresetExplanation from './PresetExplanation';
 import DEParametersForm from './forms/DEParametersForm';
 import ACORParametersForm from './forms/ACORParametersForm';
+import SAParametersForm from './forms/SAParametersForm';
 
 
 export default function AlgorithmSelector() {
@@ -74,6 +75,16 @@ export default function AlgorithmSelector() {
     archive_size: 10,
     q: 0.01,
     xi: 0.85
+  });
+
+  // SA-specific state
+  const [saParams, setSaParams] = useState({
+    initialTemp: 100.0,
+    finalTemp: 0.01,
+    coolingRate: 0.95,
+    maxIterations: 50,
+    neighborStd: 0.1,
+    coolingSchedule: 'geometric'
   });
 
 
@@ -304,6 +315,15 @@ export default function AlgorithmSelector() {
           q: parseFloat(acorParams.q),
           xi: parseFloat(acorParams.xi)
         };
+      } else if (selectedAlgorithm === 'simulated_annealing') {
+        params = {
+          initial_temp: parseFloat(saParams.initialTemp),
+          final_temp: parseFloat(saParams.finalTemp),
+          cooling_rate: parseFloat(saParams.coolingRate),
+          max_iterations: parseInt(saParams.maxIterations),
+          neighbor_std: parseFloat(saParams.neighborStd),
+          cooling_schedule: saParams.coolingSchedule
+        };
       }
 
 
@@ -343,6 +363,8 @@ export default function AlgorithmSelector() {
       setDeParams(preset.deParams);
     } else if (preset.algorithm === 'ant_colony' && preset.acorParams) {
       setAcorParams(preset.acorParams);
+    } else if (preset.algorithm === 'simulated_annealing' && preset.saParams) {
+      setSaParams(preset.saParams);
     }
     
     // Switch to form mode to show the applied configuration
@@ -650,6 +672,18 @@ export default function AlgorithmSelector() {
                   formData={acorParams}
                   onChange={(params) => {
                     setAcorParams(params);
+                    if (selectedPreset) {
+                      setSelectedPreset(null);
+                    }
+                  }}
+                />
+              )}
+
+              {selectedAlgorithm === 'simulated_annealing' && (
+                <SAParametersForm
+                  formData={saParams}
+                  onChange={(params) => {
+                    setSaParams(params);
                     if (selectedPreset) {
                       setSelectedPreset(null);
                     }
