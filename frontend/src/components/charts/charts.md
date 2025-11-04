@@ -61,7 +61,7 @@ If you ran PSO on a 2D Sphere function (minimize x² + y²):
 
 *SolutionRadarChart* : Two spokes (x and y), both near center (close to 0)
 
-* SolutionSpaceChart* : Red dot near center of a circular "bowl" pattern, showing you found the global minimum
+*SolutionSpaceChart* : Red dot near center of a circular "bowl" pattern, showing you found the global minimum
 
 *📈 Chart Interaction* :
 - Hover tooltips: Show exact values
