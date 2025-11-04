@@ -1,0 +1,30 @@
+algorithm: PSO
+name: pso_sphere_test
+description: "Simple PSO test minimizing the 3-dimensional sphere function"
+seed: 42
+swarm_size: 50
+iterations: 200
+inertia: 0.7298
+c1: 1.49618
+c2: 1.49618
+objective:
+  type: expression
+  expression: "x0**2 + x1**2 + x2**2"
+variables:
+  dim: 3
+  list:
+    - name: x0
+      type: float
+      min: -5.0
+      max: 5.0
+    - name: x1
+      type: float
+      min: -5.0
+      max: 5.0
+    - name: x2
+      type: float
+      min: -5.0
+      max: 5.0
+output:
+  save_best: true
+  verbose: true

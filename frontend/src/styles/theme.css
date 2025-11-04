@@ -34,3 +34,36 @@
   background: var(--color-accent);
   color: #1E293B; /* dark slate for readability on cyan */
 }
+
+/* Chart container styles */
+.chart-container {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
+}
+
+/* Print styles for reports */
+@media print {
+  .chart-container {
+    break-inside: avoid;
+    margin-bottom: 2rem;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Chart responsiveness */
+@media (max-width: 768px) {
+  .chart-container canvas {
+    height: 300px !important;
+  }
+  
+  /* Make charts more responsive on mobile */
+  .grid.grid-cols-1.lg\\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+}

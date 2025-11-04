@@ -1,3 +1,8 @@
+import React from 'react';
+import ConvergenceChart from './charts/ConvergenceChart';
+import SolutionSpaceChart from './charts/SolutionSpaceChart';
+import MetricsBarChart from './charts/MetricsBarChart';
+import SolutionRadarChart from './charts/SolutionRadarChart';
 /**
  * Human-readable results display for optimization algorithms.
  * Shows: Summary, Best Solution, Performance Metrics, and Convergence.
@@ -279,6 +284,50 @@ export default function ResultsDisplay({ result }) {
     }
 
     return { icon: 'ℹ️', text: '', color: 'text-gray-500' };
+  };
+
+  const downloadResultsAsJSON = () => {
+    const dataStr = JSON.stringify(result, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `optimization_results_${new Date().toISOString()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadResultsAsCSV = () => {
+    const { convergence_curve, best_solution } = result;
+    
+    let csvContent = 'Iteration,Fitness\n';
+    if (convergence_curve) {
+      convergence_curve.forEach((fitness, index) => {
+        csvContent += `${index + 1},${fitness}\n`;
+      });
+    }
+    
+    csvContent += '\nBest Solution\n';
+    csvContent += 'Dimension,Value\n';
+    if (best_solution) {
+      best_solution.forEach((value, index) => {
+        csvContent += `${index + 1},${value}\n`;
+      });
+    }
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `optimization_results_${new Date().toISOString()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+   // Extract problem configuration for charts
+  const problemConfig = {
+    bounds: result.problem?.bounds || (result.best_solution ? result.best_solution.map(() => [-5, 5]) : []),
+    fitness_function_name: result.problem?.fitness_function || 'unknown'
   };
 
   return (
@@ -583,61 +632,74 @@ export default function ResultsDisplay({ result }) {
         </div>
       )}
 
-      {/* Convergence Curve Card */}
+      {/* Interactive Charts Section */}
       {hasConvergence && (
-        <div className="bg-white rounded-xl shadow-md border-2 border-orange-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-orange-600 to-red-600 px-6 py-3">
-            <h4 className="text-lg font-bold text-white flex items-center gap-2">
-              <span>📈</span> Convergence Curve
-            </h4>
-          </div>
-          <div className="p-6">
-            <p className="text-sm text-gray-600 mb-4">
-              Shows how the best fitness improved over {result.iterations_completed} iterations
-            </p>
-            
-            {/* Simple ASCII-style visualization */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-x-auto">
-              <div className="font-mono text-xs space-y-1">
-                {result.convergence_curve.filter((_, i) => i % Math.ceil(result.convergence_curve.length / 20) === 0 || i === result.convergence_curve.length - 1).map((fitness, idx, arr) => {
-                  const maxFitness = Math.max(...result.convergence_curve);
-                  const minFitness = Math.min(...result.convergence_curve);
-                  const range = maxFitness - minFitness || 1;
-                  const barWidth = Math.round(((maxFitness - fitness) / range) * 50);
-                  
-                  return (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-gray-500 w-12 text-right">
-                        {Math.round((idx / (arr.length - 1)) * result.iterations_completed)}
-                      </span>
-                      <span className="text-gray-400">│</span>
-                      <div className="flex-1">
-                        <div 
-                          className="bg-gradient-to-r from-red-500 to-green-500 h-4 rounded"
-                          style={{ width: `${Math.max(barWidth, 2)}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-gray-600 w-24">
-                        {formatNumber(fitness)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+        <div className="space-y-8">
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Convergence Chart - Always show */}
+            <div className="lg:col-span-2">
+              <ConvergenceChart 
+                convergenceData={result.convergence_curve} 
+                algorithmName={getAlgoName(result.algorithm)}
+              />
             </div>
 
-            {/* Data points summary */}
-            <div className="mt-4 text-xs text-gray-500 flex gap-4">
-              <span>🔴 Worse fitness</span>
-              <span>🟢 Better fitness</span>
-              <span className="ml-auto">Showing {Math.min(20, result.convergence_curve.length)} of {result.convergence_curve.length} iterations</span>
-            </div>
+            {/* Metrics Bar Chart */}
+            <MetricsBarChart 
+              results={result} 
+              algorithmName={getAlgoName(result.algorithm)}
+            />
+
+            {/* Solution Radar Chart */}
+            {result.best_solution && result.best_solution.length > 0 && (
+              <SolutionRadarChart 
+                bestSolution={result.best_solution}
+                bounds={problemConfig.bounds}
+              />
+            )}
+
+            {/* Solution Space Chart (2D visualization) */}
+            {result.best_solution && result.best_solution.length >= 2 && (
+              <div className="lg:col-span-2">
+                <SolutionSpaceChart 
+                  bestSolution={result.best_solution}
+                  bounds={problemConfig.bounds}
+                  fitnessFunction={problemConfig.fitness_function_name}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
 
+      {/* Export Options */}
+      <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200 no-print">
+        <h3 className="text-lg font-bold text-purple-600 mb-4">Export Options</h3>
+        <div className="flex flex-wrap gap-4">
+          <button
+            onClick={downloadResultsAsJSON}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+          >
+            📊 Download JSON
+          </button>
+          <button
+            onClick={downloadResultsAsCSV}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            📈 Download CSV
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+          >
+            🖨️ Print Report
+          </button>
+        </div>
+      </div>
+
       {/* Raw Data (Collapsible) */}
-      <details className="bg-gray-50 rounded-lg border border-gray-300">
+      <details className="bg-gray-50 rounded-lg border border-gray-300 no-print">
         <summary className="px-6 py-3 cursor-pointer font-semibold text-gray-700 hover:bg-gray-100">
           🔍 View Raw JSON Data
         </summary>
@@ -649,4 +711,4 @@ export default function ResultsDisplay({ result }) {
       </details>
     </div>
   );
-}
+};

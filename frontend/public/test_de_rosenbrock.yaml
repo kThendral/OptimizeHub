@@ -1,0 +1,25 @@
+algorithm: DE
+name: de_rosenbrock_test
+description: "Differential Evolution test minimizing the 2-D Rosenbrock function"
+seed: 42
+population_size: 60
+generations: 200
+mutation_factor: 0.8
+crossover_rate: 0.9
+objective:
+  type: expression
+  expression: "(1 - x)**2 + 100*(y - x**2)**2"
+variables:
+  dim: 2
+  list:
+    - name: x
+      type: float
+      min: -2.0
+      max: 2.0
+    - name: y
+      type: float
+      min: -1.0
+      max: 3.0
+output:
+  save_best: true
+  verbose: true
