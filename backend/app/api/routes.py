@@ -1,8 +1,9 @@
 """
 FastAPI routes for OptimizeHub API.
 """
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, UploadFile, File
 from typing import Dict, Any
+import yaml
 from app.models.problem import OptimizationRequest, ProblemInput
 from app.models.result import (
     OptimizationResult,
@@ -12,6 +13,8 @@ from app.models.result import (
     HealthResponse
 )
 from app.services.executor import AlgorithmExecutor
+from app.services.docker_executor import get_docker_executor
+from app.validators.code_validator import validate_fitness_code
 from app.core.validation import validate_problem, validate_algorithm_params
 from app.config import MAX_DIMENSIONS, MAX_ITERATIONS, get_available_algorithms
 
@@ -76,6 +79,160 @@ async def run_optimization(request: OptimizationRequest) -> OptimizationResult:
     # Handle not_implemented status with proper HTTP response
     # (still returns 200 but with status field indicating not_implemented)
     return OptimizationResult(**result)
+
+
+@router.post("/optimize/custom", response_model=OptimizationResult, status_code=status.HTTP_200_OK)
+async def run_optimization_custom(
+    fitness_file: UploadFile = File(..., description="Python file containing fitness function"),
+    config_file: UploadFile = File(..., description="YAML configuration file")
+) -> OptimizationResult:
+    """
+    Run an optimization algorithm with a custom fitness function.
+
+    This endpoint allows users to upload their own fitness function and execute
+    it in an isolated Docker container for security.
+
+    Args:
+        fitness_file: Python file (.py) containing a 'fitness' function
+        config_file: YAML file with algorithm configuration
+
+    Returns:
+        Optimization results with status, solution, and convergence data
+
+    Raises:
+        HTTPException: If validation fails or execution encounters an error
+    """
+    # Validate file types
+    if not fitness_file.filename.endswith('.py'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Fitness file must be a Python file (.py)"
+        )
+
+    if not config_file.filename.endswith(('.yaml', '.yml')):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Config file must be a YAML file (.yaml or .yml)"
+        )
+
+    # Read files
+    try:
+        fitness_code = (await fitness_file.read()).decode('utf-8')
+        config_content = (await config_file.read()).decode('utf-8')
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Files must be valid UTF-8 text files"
+        )
+
+    # Check file sizes (max 1MB each)
+    if len(fitness_code) > 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Fitness file too large (max 1MB)"
+        )
+
+    if len(config_content) > 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Config file too large (max 1MB)"
+        )
+
+    # Validate fitness function code
+    is_valid, error_message = validate_fitness_code(fitness_code)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "Security validation failed",
+                "message": error_message
+            }
+        )
+
+    # Parse YAML configuration
+    try:
+        config = yaml.safe_load(config_content)
+    except yaml.YAMLError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid YAML configuration: {str(e)}"
+        )
+
+    # Validate configuration structure
+    if not isinstance(config, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Configuration must be a YAML dictionary"
+        )
+
+    required_fields = ['algorithm', 'parameters', 'problem']
+    missing_fields = [field for field in required_fields if field not in config]
+    if missing_fields:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Missing required fields in configuration: {', '.join(missing_fields)}"
+        )
+
+    # Validate algorithm name
+    allowed_algorithms = ['PSO', 'GA', 'DE', 'SA', 'ACOR']
+    if config['algorithm'] not in allowed_algorithms:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Algorithm must be one of: {', '.join(allowed_algorithms)}"
+        )
+
+    # Execute in Docker sandbox
+    try:
+        docker_executor = get_docker_executor()
+        result = docker_executor.execute_custom_fitness(fitness_code, config)
+
+        # Check if execution was successful
+        if not result.get('success', False):
+            error_type = result.get('error_type', 'unknown')
+            error_message = result.get('error', 'Unknown error occurred')
+
+            # Provide user-friendly error messages
+            if error_type == 'timeout':
+                friendly_message = f"Optimization exceeded 30 seconds timeout. Try reducing iterations or problem complexity. Details: {error_message}"
+            elif error_type == 'validation_error':
+                friendly_message = f"Code validation error: {error_message}"
+            elif error_type == 'container_error':
+                friendly_message = f"Execution error: {error_message}"
+            else:
+                friendly_message = error_message
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "error": "Execution failed",
+                    "error_type": error_type,
+                    "message": friendly_message
+                }
+            )
+
+        # Return successful result
+        return OptimizationResult(
+            status="success",
+            algorithm=config['algorithm'],
+            best_solution=result['best_solution'],
+            best_fitness=result['best_fitness'],
+            iterations_completed=result['iterations'],
+            convergence_curve=result['convergence_history'],
+            execution_time=result.get('execution_time', 0)
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Catch any unexpected errors
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Unexpected error during execution",
+                "message": str(e)
+            }
+        )
 
 
 @router.get("/algorithms", response_model=AlgorithmListResponse)
@@ -204,6 +361,7 @@ async def root() -> Dict[str, Any]:
         "health_check_url": "/api/health",
         "endpoints": {
             "POST /api/optimize": "Run optimization algorithm",
+            "POST /api/optimize/custom": "Run optimization with custom fitness function (Docker sandbox)",
             "GET /api/algorithms": "List all algorithms",
             "GET /api/algorithms/{name}": "Get algorithm details",
             "POST /api/validate": "Validate problem definition",

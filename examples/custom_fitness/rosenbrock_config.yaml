@@ -1,0 +1,10 @@
+algorithm: DE
+parameters:
+  population_size: 50
+  max_generations: 200
+  F: 0.8
+  CR: 0.9
+problem:
+  dimensions: 5
+  lower_bound: -2.0
+  upper_bound: 2.0

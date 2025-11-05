@@ -1,0 +1,10 @@
+algorithm: GA
+parameters:
+  population_size: 40
+  max_generations: 100
+  mutation_rate: 0.1
+  crossover_rate: 0.8
+problem:
+  dimensions: 8
+  lower_bound: -10.0
+  upper_bound: 10.0
