@@ -1,0 +1,4 @@
+# Celery and Redis client
+celery[redis]>=5.0
+redis>=4.0
+# If you use kombu extras for monitoring, add them here

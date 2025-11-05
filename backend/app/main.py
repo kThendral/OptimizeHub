@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
+from app.api.async_tasks import router as async_router
 import logging
 
 from app.api.routes import router
@@ -131,7 +132,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # Mount API routes under /api prefix
 app.include_router(router, prefix="/api", tags=["Optimization"])
-
+app.include_router(async_router)
 
 # ==============================================================================
 # Root Endpoint
