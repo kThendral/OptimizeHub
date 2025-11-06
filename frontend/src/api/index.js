@@ -52,8 +52,58 @@ export async function executeAlgorithm(payload) {
   return data;
 }
 
+/**
+ * Submit async optimization job to Celery queue.
+ * @param {Object} problem - Problem definition with dimensions, bounds, objective, fitness_function_name
+ * @param {Array<string>} algorithms - Array of algorithm names (e.g., ["particle_swarm", "genetic_algorithm"])
+ * @param {Object} params - Optional algorithm-specific parameters
+ * @returns {Promise<{group_id: string, task_ids: Array<string>}>}
+ */
+export async function submitAsyncOptimization(problem, algorithms, params = null) {
+  const payload = {
+    problem,
+    algorithms
+  };
+
+  // Add params if provided
+  if (params) {
+    payload.params = params;
+  }
+
+  const res = await fetch(`${API_BASE}/async/optimize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const data = await res.json();
+    const msg = data.detail || data.error || JSON.stringify(data);
+    throw new Error(msg);
+  }
+
+  return res.json(); // Returns: { group_id, task_ids }
+}
+
+/**
+ * Poll task status from Celery.
+ * @param {string} taskId - Task ID returned from submitAsyncOptimization
+ * @returns {Promise<{task_id: string, state: string, result?: any, error?: any}>}
+ */
+export async function getTaskStatus(taskId) {
+  const res = await fetch(`${API_BASE}/async/tasks/${taskId}`);
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch task status: ${res.status}`);
+  }
+
+  return res.json(); // Returns: { task_id, state: "PENDING|STARTED|SUCCESS|FAILURE", result?, error? }
+}
+
 export default {
   fetchAlgorithms,
   fetchAlgorithmDetails,
-  executeAlgorithm
+  executeAlgorithm,
+  submitAsyncOptimization,
+  getTaskStatus
 };

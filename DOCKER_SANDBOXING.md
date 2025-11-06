@@ -193,6 +193,10 @@ The security validator blocks:
    docker info
    ```
 
+   **Alternative: Podman**
+
+   If you cannot use Docker, Podman is supported as an alternative. See the [Podman Setup](#podman-alternative-setup) section below.
+
 2. **Python 3.11+**
    ```bash
    python --version
@@ -871,9 +875,70 @@ Total:                    ~200 MB
 
 ---
 
+## Podman Alternative Setup
+
+If Docker is not available on your system, you can use Podman as a drop-in replacement. Podman is compatible with Docker commands and doesn't require a daemon.
+
+### Files Location
+
+Podman-specific files are located in `backend/podman-alternative/`:
+- `podman-compose.yml` - Podman Compose configuration
+- `setup_podman_sandbox.bat` - Windows setup script
+
+### Installation
+
+1. **Install Podman**
+   - **Windows**: Download from https://podman.io/getting-started/installation
+   - **Mac**: `brew install podman`
+   - **Linux**: `sudo apt install podman` or `sudo dnf install podman`
+
+2. **Initialize Podman Machine** (Mac/Windows only)
+   ```bash
+   podman machine init
+   podman machine start
+   ```
+
+3. **Verify Installation**
+   ```bash
+   podman --version
+   podman info
+   ```
+
+### Setup Instructions
+
+#### Windows
+```bash
+cd backend/podman-alternative
+./setup_podman_sandbox.bat
+```
+
+#### Mac/Linux
+```bash
+cd backend
+podman-compose -f podman-alternative/podman-compose.yml build
+podman-compose -f podman-alternative/podman-compose.yml up
+```
+
+### Configuration Differences
+
+The Podman compose file has slight differences from Docker:
+- Uses `docker.io/library/redis:7.2` instead of `redis:7.0`
+- Different container naming conventions
+- Uses `REDIS_URL` environment variable
+
+### Important Notes
+
+- All Python code uses standard Docker commands and works with Podman
+- Podman is Docker-compatible, so no code changes are needed
+- The sandbox Docker image (`optimizehub-sandbox:latest`) works with both Docker and Podman
+- Performance may vary slightly between Docker and Podman
+
+---
+
 ## Additional Resources
 
 - **Docker Security**: https://docs.docker.com/engine/security/
+- **Podman Documentation**: https://docs.podman.io/
 - **FastAPI File Uploads**: https://fastapi.tiangolo.com/tutorial/request-files/
 - **Python AST**: https://docs.python.org/3/library/ast.html
 - **Example Files**: `examples/custom_fitness/README.md`

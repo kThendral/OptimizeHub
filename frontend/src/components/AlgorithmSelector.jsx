@@ -12,6 +12,7 @@ import DEParametersForm from './forms/DEParametersForm';
 import ACORParametersForm from './forms/ACORParametersForm';
 import SAParametersForm from './forms/SAParametersForm';
 import CustomFitnessUpload from './CustomFitnessUpload';
+import AsyncOptimizationSSE from './AsyncOptimizationSSE';
 
 
 export default function AlgorithmSelector() {
@@ -20,9 +21,14 @@ export default function AlgorithmSelector() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
-  
+
   // Tab state: 'form', 'yaml', or 'custom'
   const [inputMode, setInputMode] = useState('form');
+
+  // Async mode state
+  const [runAsync, setRunAsync] = useState(false);
+  const [showAsyncView, setShowAsyncView] = useState(false);
+  const [asyncJobData, setAsyncJobData] = useState(null);
   
   // Preset state
   const [selectedPreset, setSelectedPreset] = useState(null);
@@ -252,95 +258,106 @@ export default function AlgorithmSelector() {
   };
 
   const handleRun = async () => {
-    setLoading(true);
-    setError(null);
-    setResult(null);
+    // Build the problem object
+    const problem = {
+      dimensions: parseInt(problemData.dimensions),
+      bounds: Array(parseInt(problemData.dimensions)).fill([
+        parseFloat(problemData.lowerBound),
+        parseFloat(problemData.upperBound)
+      ]),
+      objective: problemData.objective
+    };
 
-    try {
-      // Build the problem object
-      const problem = {
-        dimensions: parseInt(problemData.dimensions),
-        bounds: Array(parseInt(problemData.dimensions)).fill([
-          parseFloat(problemData.lowerBound),
-          parseFloat(problemData.upperBound)
-        ]),
-        objective: problemData.objective
+    // Handle real-world problems vs benchmark functions
+    if (problemData.fitnessFunction === 'tsp' && problemData.cities) {
+      problem.problem_type = 'tsp';
+      problem.cities = problemData.cities;
+      // Don't set fitness_function_name for TSP
+    } else if (problemData.fitnessFunction === 'knapsack' && problemData.items) {
+      problem.problem_type = 'knapsack';
+      problem.items = problemData.items;
+      problem.capacity = parseFloat(problemData.capacity);
+      // Don't set fitness_function_name for Knapsack
+    } else {
+      // Benchmark function
+      problem.fitness_function_name = problemData.fitnessFunction;
+    }
+
+    // Build algorithm-specific params
+    let params = {};
+
+    if (selectedAlgorithm === 'particle_swarm') {
+      params = {
+        swarm_size: parseInt(psoParams.swarmSize),
+        max_iterations: parseInt(psoParams.maxIterations),
+        w: parseFloat(psoParams.w),
+        c1: parseFloat(psoParams.c1),
+        c2: parseFloat(psoParams.c2)
       };
-
-      // Handle real-world problems vs benchmark functions
-      if (problemData.fitnessFunction === 'tsp' && problemData.cities) {
-        problem.problem_type = 'tsp';
-        problem.cities = problemData.cities;
-        // Don't set fitness_function_name for TSP
-      } else if (problemData.fitnessFunction === 'knapsack' && problemData.items) {
-        problem.problem_type = 'knapsack';
-        problem.items = problemData.items;
-        problem.capacity = parseFloat(problemData.capacity);
-        // Don't set fitness_function_name for Knapsack
-      } else {
-        // Benchmark function
-        problem.fitness_function_name = problemData.fitnessFunction;
-      }
-
-      // Build algorithm-specific params
-      let params = {};
-
-      if (selectedAlgorithm === 'particle_swarm') {
-        params = {
-          swarm_size: parseInt(psoParams.swarmSize),
-          max_iterations: parseInt(psoParams.maxIterations),
-          w: parseFloat(psoParams.w),
-          c1: parseFloat(psoParams.c1),
-          c2: parseFloat(psoParams.c2)
-        };
-      } else if (selectedAlgorithm === 'genetic_algorithm') {
-        params = {
-          population_size: parseInt(gaParams.populationSize),
-          max_iterations: parseInt(gaParams.maxIterations),
-          crossover_rate: parseFloat(gaParams.crossoverRate),
-          mutation_rate: parseFloat(gaParams.mutationRate),
-          tournament_size: parseInt(gaParams.tournamentSize)
-        };
-      } else if (selectedAlgorithm === 'differential_evolution') {
-        params = {
-          population_size: parseInt(deParams.population_size),
-          max_iterations: parseInt(deParams.max_iterations),
-          F: parseFloat(deParams.F),
-          CR: parseFloat(deParams.CR)
-        };
-      } else if (selectedAlgorithm === 'ant_colony') {
-        params = {
-          colony_size: parseInt(acorParams.colony_size),
-          max_iterations: parseInt(acorParams.max_iterations),
-          archive_size: parseInt(acorParams.archive_size),
-          q: parseFloat(acorParams.q),
-          xi: parseFloat(acorParams.xi)
-        };
-      } else if (selectedAlgorithm === 'simulated_annealing') {
-        params = {
-          initial_temp: parseFloat(saParams.initialTemp),
-          final_temp: parseFloat(saParams.finalTemp),
-          cooling_rate: parseFloat(saParams.coolingRate),
-          max_iterations: parseInt(saParams.maxIterations),
-          neighbor_std: parseFloat(saParams.neighborStd),
-          cooling_schedule: saParams.coolingSchedule
-        };
-      }
-
-
-      // Build the full payload
-      const payload = {
-        algorithm: selectedAlgorithm,
-        problem: problem,
-        params: params
+    } else if (selectedAlgorithm === 'genetic_algorithm') {
+      params = {
+        population_size: parseInt(gaParams.populationSize),
+        max_iterations: parseInt(gaParams.maxIterations),
+        crossover_rate: parseFloat(gaParams.crossoverRate),
+        mutation_rate: parseFloat(gaParams.mutationRate),
+        tournament_size: parseInt(gaParams.tournamentSize)
       };
+    } else if (selectedAlgorithm === 'differential_evolution') {
+      params = {
+        population_size: parseInt(deParams.population_size),
+        max_iterations: parseInt(deParams.max_iterations),
+        F: parseFloat(deParams.F),
+        CR: parseFloat(deParams.CR)
+      };
+    } else if (selectedAlgorithm === 'ant_colony') {
+      params = {
+        colony_size: parseInt(acorParams.colony_size),
+        max_iterations: parseInt(acorParams.max_iterations),
+        archive_size: parseInt(acorParams.archive_size),
+        q: parseFloat(acorParams.q),
+        xi: parseFloat(acorParams.xi)
+      };
+    } else if (selectedAlgorithm === 'simulated_annealing') {
+      params = {
+        initial_temp: parseFloat(saParams.initialTemp),
+        final_temp: parseFloat(saParams.finalTemp),
+        cooling_rate: parseFloat(saParams.coolingRate),
+        max_iterations: parseInt(saParams.maxIterations),
+        neighbor_std: parseFloat(saParams.neighborStd),
+        cooling_schedule: saParams.coolingSchedule
+      };
+    }
 
-      const res = await executeAlgorithm(payload);
-      setResult(res);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    // Check if async mode is enabled
+    if (runAsync) {
+      // Store job data and switch to async view
+      setAsyncJobData({
+        problem,
+        algorithms: [selectedAlgorithm],
+        params
+      });
+      setShowAsyncView(true);
+    } else {
+      // Run synchronously (existing behavior)
+      setLoading(true);
+      setError(null);
+      setResult(null);
+
+      try {
+        // Build the full payload
+        const payload = {
+          algorithm: selectedAlgorithm,
+          problem: problem,
+          params: params
+        };
+
+        const res = await executeAlgorithm(payload);
+        setResult(res);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -399,12 +416,27 @@ export default function AlgorithmSelector() {
     return algoObj && algoObj.status === 'coming_soon';
   };
 
+  // If showing async view, render AsyncOptimizationSSE component (with real-time SSE updates)
+  if (showAsyncView && asyncJobData) {
+    return (
+      <AsyncOptimizationSSE
+        problem={asyncJobData.problem}
+        algorithms={asyncJobData.algorithms}
+        params={asyncJobData.params}
+        onBack={() => {
+          setShowAsyncView(false);
+          setAsyncJobData(null);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="text-2xl font-semibold text-primary mb-4">
         Algorithm Dashboard
       </h2>
-      
+
       {/* Error Display */}
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -702,13 +734,38 @@ export default function AlgorithmSelector() {
                 />
               )}
 
+              {/* Async Mode Toggle */}
+              <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={runAsync}
+                        onChange={(e) => setRunAsync(e.target.checked)}
+                        className="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer"
+                      />
+                      <span className="ml-3 font-medium text-gray-700">
+                        Run Asynchronously
+                      </span>
+                    </label>
+                    <span className="text-xl">⚡</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600 mt-2 ml-8">
+                  {runAsync
+                    ? '✓ Task will run in background. You can monitor progress in real-time.'
+                    : 'Task will run synchronously and block until complete.'}
+                </p>
+              </div>
+
               {/* Run Button - only shown when algorithm is selected */}
               <button
                 onClick={handleRun}
                 disabled={loading}
                 className="w-full btn-primary hover:opacity-95 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Running...' : 'Run Optimization'}
+                {loading ? 'Running...' : runAsync ? 'Submit Async Job' : 'Run Optimization'}
               </button>
             </>
           )}

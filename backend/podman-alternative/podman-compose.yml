@@ -1,4 +1,4 @@
-version: "3.8"
+﻿version: "3.8"
 
 services:
   backend:
@@ -8,7 +8,6 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
@@ -19,10 +18,6 @@ services:
     build: .
     container_name: optimizehub-worker
     command: celery -A app.celery_app worker --loglevel=info
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - redis
 
@@ -31,17 +26,3 @@ services:
     container_name: optimizehub-redis
     ports:
       - "6379:6379"
-
-  flower:
-    build: .
-    container_name: optimizehub-flower
-    command: celery -A app.celery_app.celery flower --port=5555 --broker_api=redis://redis:6379/0
-    ports:
-      - "5555:5555"
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      - redis
-      - worker

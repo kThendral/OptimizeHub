@@ -1,10 +1,8 @@
-version: "3.9"
-
 services:
   web:
     build: .
     container_name: optimizehub_web
-    command: uvicorn app.api.routes:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
     environment:
@@ -27,3 +25,17 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
+
+  flower:
+    build: .
+    container_name: optimizehub_flower
+    command: celery -A app.celery_app.celery flower --port=5555 --broker_api=redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - worker

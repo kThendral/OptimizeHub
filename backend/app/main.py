@@ -10,6 +10,7 @@ from app.api.async_tasks import router as async_router
 import logging
 
 from app.api.routes import router
+from app.api.sse import router as sse_router
 from app.config import get_available_algorithms, ALGORITHM_REGISTRY
 
 # Configure logging
@@ -133,6 +134,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 # Mount API routes under /api prefix
 app.include_router(router, prefix="/api", tags=["Optimization"])
 app.include_router(async_router)
+app.include_router(sse_router, prefix="/api", tags=["SSE"])
 
 # ==============================================================================
 # Root Endpoint
