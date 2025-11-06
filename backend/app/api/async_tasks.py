@@ -5,6 +5,7 @@ from celery import group
 from celery.result import AsyncResult
 
 from ..tasks import run_algorithm
+from ..celery_app import celery
 
 router = APIRouter(prefix="/async", tags=["async"])
 
@@ -31,9 +32,11 @@ def optimize(problem_req: ProblemRequest):
 
 @router.get("/tasks/{task_id}")
 def get_task_status(task_id: str):
-    async_res = AsyncResult(task_id)
+    async_res = AsyncResult(task_id, app=celery)
     state = async_res.state
     response = {"task_id": task_id, "state": state}
     if async_res.ready():
         response["result"] = async_res.result
+    elif state == "FAILURE":
+        response["result"] = async_res.info  # Error details
     return response

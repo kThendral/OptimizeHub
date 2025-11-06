@@ -8,7 +8,7 @@ celery = Celery(
     "optimizehub",
     broker_url=REDIS_URL,
     result_backend=REDIS_URL,
-    include=["app.tasks"],
+    include=["app.tasks"]
 )
 
 celery.conf.update(
@@ -21,3 +21,6 @@ celery.conf.update(
     task_time_limit=600,      # hard limit seconds
     task_soft_time_limit=550, # soft limit seconds
 )
+
+# Explicitly import tasks to ensure registration
+import app.tasks
