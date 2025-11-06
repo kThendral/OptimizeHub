@@ -1,0 +1,15 @@
+algorithm: genetic_algorithm
+name: test_timeout_protection
+description: "Timeout test using infinite loop - should be TERMINATED"
+fitness_function_file: "timeout_test.py"
+dimensions: 3
+bounds:
+  - [-10.0, 10.0]
+  - [-10.0, 10.0]
+  - [-10.0, 10.0]
+population_size: 15
+max_generations: 50
+mutation_rate: 0.1
+crossover_rate: 0.8
+seed: 123
+objective: minimize

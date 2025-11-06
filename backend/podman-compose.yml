@@ -1,0 +1,28 @@
+﻿version: "3.8"
+
+services:
+  backend:
+    build: .
+    container_name: optimizehub-backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - worker
+
+  worker:
+    build: .
+    container_name: optimizehub-worker
+    command: celery -A app.celery_app worker --loglevel=info
+    depends_on:
+      - redis
+
+  redis:
+    image: docker.io/library/redis:7.2
+    container_name: optimizehub-redis
+    ports:
+      - "6379:6379"

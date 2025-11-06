@@ -1,0 +1,14 @@
+algorithm: differential_evolution
+name: test_rosenbrock_secure
+description: "Safe Rosenbrock test to verify normal operation works"
+fitness_function_file: "rosenbrock_fitness.py"
+dimensions: 2
+bounds:
+  - [-2.0, 2.0]
+  - [-2.0, 2.0]
+population_size: 30
+max_iterations: 100
+F: 0.8
+CR: 0.9
+seed: 456
+objective: minimize

@@ -36,4 +36,7 @@ tzdata==2025.2
 uvicorn==0.37.0
 vine==5.1.0
 wcwidth==0.2.14
+Flask==2.3.2
+flower==1.0.0
+
 wheel==0.45.1
