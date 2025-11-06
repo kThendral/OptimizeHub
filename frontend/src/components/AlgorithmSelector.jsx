@@ -11,6 +11,7 @@ import PresetExplanation from './PresetExplanation';
 import DEParametersForm from './forms/DEParametersForm';
 import ACORParametersForm from './forms/ACORParametersForm';
 import SAParametersForm from './forms/SAParametersForm';
+import CustomFitnessUpload from './CustomFitnessUpload';
 
 
 export default function AlgorithmSelector() {
@@ -20,7 +21,7 @@ export default function AlgorithmSelector() {
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   
-  // Tab state: 'form' or 'yaml'
+  // Tab state: 'form', 'yaml', or 'custom'
   const [inputMode, setInputMode] = useState('form');
   
   // Preset state
@@ -433,6 +434,16 @@ export default function AlgorithmSelector() {
         >
           YAML Upload
         </button>
+        <button
+          onClick={() => setInputMode('custom')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            inputMode === 'custom'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Custom Fitness 🔒
+        </button>
       </div>
 
       {/* Form Input Mode */}
@@ -769,6 +780,13 @@ params:
           >
             {loading ? 'Running...' : 'Run from YAML'}
           </button>
+        </div>
+      )}
+
+      {/* Custom Fitness Function Mode */}
+      {inputMode === 'custom' && (
+        <div className="mb-6">
+          <CustomFitnessUpload />
         </div>
       )}
 
