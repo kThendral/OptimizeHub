@@ -1,4 +1,4 @@
-export default function LandingPage({ onStart }) {
+export default function LandingPage({ onStart, onLearn }) {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - 1/3 width - Dark Purple with Gradient - Brand & Button */}
@@ -19,16 +19,30 @@ export default function LandingPage({ onStart }) {
             </h1>
           </div>
 
-          {/* Get Started Button */}
-          <button
-            onClick={onStart}
-            className="bg-gradient-to-r from-blue-500 via-purple-500 to-purple-600 hover:from-blue-600 hover:via-purple-600 hover:to-purple-700 text-white font-semibold py-4 px-12 rounded-xl shadow-xl shadow-purple-500/30 transform transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/50 flex items-center justify-center gap-2 mx-auto"
-          >
-            <span className="text-lg">Get Started</span>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </button>
+          {/* Action Buttons */}
+          <div className="space-y-4">
+            {/* Get Started Button */}
+            <button
+              onClick={onStart}
+              className="bg-gradient-to-r from-blue-500 via-purple-500 to-purple-600 hover:from-blue-600 hover:via-purple-600 hover:to-purple-700 text-white font-semibold py-4 px-12 rounded-xl shadow-xl shadow-purple-500/30 transform transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/50 flex items-center justify-center gap-2 mx-auto"
+            >
+              <span className="text-lg">Get Started</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </button>
+
+            {/* Learn More Button */}
+            <button
+              onClick={onLearn}
+              className="border-2 border-white/30 hover:border-white/50 text-white font-medium py-3 px-8 rounded-xl backdrop-blur-sm bg-white/10 hover:bg-white/20 transform transition-all duration-300 hover:scale-105 flex items-center justify-center gap-2 mx-auto"
+            >
+              <span className="text-base">Learn More</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 

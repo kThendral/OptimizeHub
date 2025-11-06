@@ -1,38 +1,51 @@
 import React, { useState } from "react";
 import LandingPage from "./components/LandingPage";
 import AlgorithmSelector from "./components/AlgorithmSelector";
+import LearnPage from "./pages/LearnPage";
 
 function App() {
-  const [showLanding, setShowLanding] = useState(() => {
-    try {
-      return window.location.pathname === "/";
-    } catch (e) {
-      return true;
-    }
+  const [currentPage, setCurrentPage] = useState(() => {
+    const path = window.location.pathname;
+    if (path === "/learn" || path === "/about") return "learn";
+    if (path === "/app") return "app";
+    return "landing";
   });
 
-  // Handler to navigate to app view and push history state so browser back works
+  // Handler to navigate to different pages
   const navigateToApp = () => {
-    try {
-      window.history.pushState({ page: 'app' }, '', '/app');
-    } catch (e) {
-      /* ignore */
-    }
-    setShowLanding(false);
+    window.history.pushState({ page: 'app' }, '', '/app');
+    setCurrentPage("app");
+  };
+
+  const navigateToLearn = () => {
+    window.history.pushState({ page: 'learn' }, '', '/learn');
+    setCurrentPage("learn");
+  };
+
+  const navigateToLanding = () => {
+    window.history.pushState({ page: 'landing' }, '', '/');
+    setCurrentPage("landing");
   };
 
   // Listen for browser back/forward and update view based on path
   React.useEffect(() => {
     const onPop = () => {
-      setShowLanding(window.location.pathname === '/');
+      const path = window.location.pathname;
+      if (path === "/learn" || path === "/about") setCurrentPage("learn");
+      else if (path === "/app") setCurrentPage("app");
+      else setCurrentPage("landing");
     };
 
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  if (showLanding) {
-    return <LandingPage onStart={navigateToApp} />;
+  if (currentPage === "landing") {
+    return <LandingPage onStart={navigateToApp} onLearn={navigateToLearn} />;
+  }
+
+  if (currentPage === "learn") {
+    return <LearnPage onBack={navigateToLanding} onStartOptimizing={navigateToApp} />;
   }
 
   return (
