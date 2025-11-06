@@ -141,7 +141,6 @@ Ensure you have:
 Before launching the app, build the sandbox Docker image for custom fitness functions:
 
 ```bash
-cd backend
 bash setup_docker_sandbox.sh
 ```
 

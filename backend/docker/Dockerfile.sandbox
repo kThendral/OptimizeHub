@@ -6,6 +6,10 @@ RUN pip install --no-cache-dir numpy==1.24.3
 # Create non-root user for security
 RUN useradd -m -u 1000 sandboxuser
 
+# Copy runner script as root
+COPY runner.py /runner.py
+RUN chmod 755 /runner.py
+
 # Create workspace directory
 WORKDIR /workspace
 RUN chown sandboxuser:sandboxuser /workspace

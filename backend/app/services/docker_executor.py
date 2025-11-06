@@ -168,13 +168,6 @@ class DockerExecutor:
             Dictionary with execution results
         """
         try:
-            # Get path to runner script
-            backend_dir = Path(__file__).parent.parent.parent
-            runner_path = backend_dir / "docker" / "runner.py"
-
-            if not runner_path.exists():
-                raise RuntimeError(f"Runner script not found at {runner_path}")
-
             # Build Docker command
             docker_cmd = [
                 "docker", "run",
@@ -186,7 +179,6 @@ class DockerExecutor:
                 "--tmpfs", "/tmp",  # Writable temp directory
                 "--user", "1000:1000",  # Non-root user
                 "-v", f"{exec_dir}:/workspace:ro",  # Mount execution dir as read-only
-                "-v", f"{runner_path}:/runner.py:ro",  # Mount runner script
                 "-w", "/workspace",  # Set working directory
                 self.image_name,
                 "python", "/runner.py", "fitness.py", "config.json"
