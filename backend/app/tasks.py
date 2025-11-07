@@ -58,10 +58,18 @@ def run_algorithm(self, algo_key: str, problem_payload: Dict[str, Any], params: 
             # skip classes imported from other modules
             if obj.__module__ != module.__name__:
                 continue
-            # Heuristic: class name contains 'Algorithm' or subclass of base class
-            if obj.__name__.lower().endswith("algorithm") or obj.__name__.lower().endswith("solver"):
-                alg_class = obj
-                break
+            # Check if class is a subclass of OptimizationAlgorithm (more reliable than name checking)
+            # Also keep name-based heuristic as fallback
+            try:
+                from app.algorithms.base import OptimizationAlgorithm
+                if issubclass(obj, OptimizationAlgorithm) and obj is not OptimizationAlgorithm:
+                    alg_class = obj
+                    break
+            except (ImportError, TypeError):
+                # Fallback to name-based heuristic
+                if obj.__name__.lower().endswith("algorithm") or obj.__name__.lower().endswith("solver") or obj.__name__.lower().endswith("optimization"):
+                    alg_class = obj
+                    break
 
         # If no class found try function entrypoints
         func = None

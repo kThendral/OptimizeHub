@@ -213,6 +213,39 @@ const CustomFitnessUpload = () => {
         <p>Upload your own fitness function and run it in a secure Docker sandbox</p>
       </div>
 
+      <div className="tutorial-section">
+        <h3>How to Create Your Fitness and Configuration Files</h3>
+        <p className="tutorial-description">
+          Learn how to create custom fitness functions and configuration files for evolutionary algorithms.
+          Your fitness function should accept a solution vector and return a numeric score, while the configuration
+          file defines the algorithm parameters and problem constraints.
+        </p>
+        <div className="video-container">
+          <a
+            href="https://youtu.be/nhT56blfRpE?si=WkMckoZFKRMALUdo"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="youtube-link"
+          >
+            <div className="youtube-thumbnail">
+              <svg className="play-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              <span>Watch Tutorial: Genetic Algorithm with Python - Fitness Functions</span>
+            </div>
+          </a>
+        </div>
+        <div className="tutorial-tips">
+          <strong>Quick Tips:</strong>
+          <ul>
+            <li>Your fitness function must be named <code>fitness(x)</code> and return a single numeric value</li>
+            <li>Only <code>numpy</code> and <code>math</code> libraries are allowed for security</li>
+            <li>Configuration file must be in YAML format with algorithm type, parameters, and problem bounds</li>
+            <li>Lower fitness values are better (minimization problem)</li>
+          </ul>
+        </div>
+      </div>
+
       <form onSubmit={handleSubmit} className="upload-form">
         <div className="form-section">
           <div className="file-upload-group">

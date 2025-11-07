@@ -22,8 +22,15 @@ def optimize(problem_req: ProblemRequest):
     if not problem_req.algorithms:
         raise HTTPException(status_code=400, detail="No algorithms specified")
 
+    # Transform problem to match Celery task expectations
+    problem_payload = dict(problem_req.problem)
+
+    # Rename fitness_function_name to fitness_function if present
+    if "fitness_function_name" in problem_payload:
+        problem_payload["fitness_function"] = problem_payload.pop("fitness_function_name")
+
     # Create a group of signatures
-    sigs = [run_algorithm.s(algo, problem_req.problem) for algo in problem_req.algorithms]
+    sigs = [run_algorithm.s(algo, problem_payload) for algo in problem_req.algorithms]
     job = group(sigs)
     group_result = job.apply_async()
     child_ids = [res.id for res in group_result.results]

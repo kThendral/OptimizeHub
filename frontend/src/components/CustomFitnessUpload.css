@@ -21,6 +21,119 @@
   font-size: 16px;
 }
 
+.tutorial-section {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  border-left: 4px solid #3498db;
+}
+
+.tutorial-section h3 {
+  color: #2c3e50;
+  font-size: 22px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.tutorial-description {
+  color: #7f8c8d;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.video-container {
+  margin: 20px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.youtube-link {
+  text-decoration: none;
+  display: block;
+  width: 100%;
+  max-width: 600px;
+}
+
+.youtube-thumbnail {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.youtube-thumbnail:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.play-icon {
+  width: 48px;
+  height: 48px;
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  padding: 10px;
+  transition: all 0.3s ease;
+}
+
+.youtube-thumbnail:hover .play-icon {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.youtube-thumbnail span {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.tutorial-tips {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  margin-top: 20px;
+}
+
+.tutorial-tips strong {
+  display: block;
+  color: #2c3e50;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.tutorial-tips ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #555;
+}
+
+.tutorial-tips li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.tutorial-tips code {
+  background: #e8f5e9;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  color: #2e7d32;
+  font-size: 13px;
+}
+
 .upload-form {
   background: #ffffff;
   border-radius: 8px;
@@ -349,12 +462,32 @@
   }
 
   .upload-form,
-  .results-section {
+  .results-section,
+  .tutorial-section {
     padding: 20px;
   }
 
   .upload-header h2 {
     font-size: 24px;
+  }
+
+  .tutorial-section h3 {
+    font-size: 20px;
+  }
+
+  .youtube-thumbnail {
+    padding: 20px;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .youtube-thumbnail span {
+    font-size: 16px;
+  }
+
+  .play-icon {
+    width: 40px;
+    height: 40px;
   }
 
   .results-grid {

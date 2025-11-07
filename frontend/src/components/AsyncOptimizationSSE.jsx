@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { submitAsyncOptimization } from '../api/index.js';
 import { useTaskStream } from '../hooks/useTaskStream.js';
 import ResultsDisplay from './ResultsDisplay';
+import AlgorithmComparisonView from './AlgorithmComparisonView';
 
 /**
  * AsyncOptimizationSSE Component (with Server-Sent Events)
@@ -26,6 +27,11 @@ export default function AsyncOptimizationSSE({
   const [groupId, setGroupId] = useState(null);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [completedResults, setCompletedResults] = useState([]);
+
+  // Ref to track if we've shown notification
+  const hasShownNotification = useRef(false);
 
   // Submit async job on mount
   useEffect(() => {
@@ -98,6 +104,48 @@ export default function AsyncOptimizationSSE({
     navigator.clipboard.writeText(text);
   };
 
+  // Transform Celery result to match ResultsDisplay expected format
+  const transformResult = (celeryResult, algorithmName) => {
+    // Celery returns: { algo, status, result: { best_solution, best_fitness, ... } }
+    // ResultsDisplay expects: { algorithm, best_solution, best_fitness, ... }
+
+    if (!celeryResult || !celeryResult.result) {
+      return null;
+    }
+
+    return {
+      algorithm: algorithmName,
+      ...celeryResult.result,
+    };
+  };
+
+  // Show browser notification when all tasks complete
+  const showCompletionNotification = (completedCount, totalCount) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('OptimizeHub - Tasks Complete! 🎉', {
+        body: `${completedCount} of ${totalCount} algorithm${totalCount > 1 ? 's' : ''} finished running. Click to view results.`,
+        icon: '/favicon.ico',
+      });
+    }
+  };
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // If showing results comparison view
+  if (showResults && completedResults.length > 0) {
+    return (
+      <AlgorithmComparisonView
+        results={completedResults}
+        onBack={() => setShowResults(false)}
+      />
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
@@ -163,8 +211,53 @@ export default function AsyncOptimizationSSE({
               getStatusIcon={getStatusIcon}
               getAlgorithmDisplayName={getAlgorithmDisplayName}
               copyToClipboard={copyToClipboard}
+              transformResult={transformResult}
+              onTaskComplete={(result) => {
+                // Add to completed results
+                setCompletedResults(prev => {
+                  const updated = [...prev, result];
+
+                  // Check if all tasks are complete
+                  if (updated.length === taskIds.length && !hasShownNotification.current) {
+                    hasShownNotification.current = true;
+                    showCompletionNotification(updated.length, taskIds.length);
+                  }
+
+                  return updated;
+                });
+              }}
             />
           ))}
+        </div>
+      )}
+
+      {/* View Results Button (shown when at least one task completes) */}
+      {completedResults.length > 0 && (
+        <div className="sticky bottom-0 p-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg shadow-lg border-2 border-green-400">
+          <div className="flex items-center justify-between">
+            <div className="text-white">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-2xl">🎉</span>
+                <h3 className="text-lg font-semibold">
+                  {completedResults.length === taskIds.length
+                    ? 'All Tasks Complete!'
+                    : `${completedResults.length} of ${taskIds.length} Tasks Complete`}
+                </h3>
+              </div>
+              <p className="text-sm text-green-50">
+                {completedResults.length === 1
+                  ? 'Results are ready to view'
+                  : 'Results are ready for comparison'}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowResults(true)}
+              className="px-6 py-3 bg-white text-green-600 font-semibold rounded-lg shadow-md hover:bg-green-50 transition-all duration-200 flex items-center gap-2"
+            >
+              <span>📊</span>
+              <span>View {completedResults.length > 1 ? 'Comparison' : 'Results'}</span>
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -182,10 +275,26 @@ function TaskCard({
   getStatusColor,
   getStatusIcon,
   getAlgorithmDisplayName,
-  copyToClipboard
+  copyToClipboard,
+  transformResult,
+  onTaskComplete
 }) {
   // Subscribe to SSE stream for this task
   const { status, result, error, isConnected } = useTaskStream(taskId);
+
+  // Track if we've already called onTaskComplete for this task
+  const hasNotifiedRef = useRef(false);
+
+  // When task completes successfully, transform and notify parent
+  useEffect(() => {
+    if (status === 'SUCCESS' && result && !hasNotifiedRef.current) {
+      hasNotifiedRef.current = true;
+      const transformedResult = transformResult(result, algorithm);
+      if (transformedResult) {
+        onTaskComplete(transformedResult);
+      }
+    }
+  }, [status, result, algorithm, transformResult, onTaskComplete]);
 
   return (
     <div className="p-4 bg-white border-2 border-gray-200 rounded-lg shadow-sm">
@@ -242,10 +351,29 @@ function TaskCard({
         </div>
       )}
 
-      {/* Success - Show Results */}
+      {/* Success - Show Summary */}
       {status === 'SUCCESS' && result && (
-        <div className="mt-3">
-          <ResultsDisplay result={result} compact={true} />
+        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-green-600 font-semibold">✓ Completed Successfully</span>
+          </div>
+          <div className="text-sm text-gray-700 space-y-1">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Best Fitness:</span>
+              <span className="font-mono font-semibold">
+                {result?.result?.best_fitness?.toExponential(4) || 'N/A'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Iterations:</span>
+              <span className="font-medium">
+                {result?.result?.iterations_completed || 'N/A'}
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2 italic">
+            Click "View Results" below to see detailed analysis and charts
+          </p>
         </div>
       )}
 

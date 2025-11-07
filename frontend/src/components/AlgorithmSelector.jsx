@@ -29,6 +29,7 @@ export default function AlgorithmSelector() {
   const [runAsync, setRunAsync] = useState(false);
   const [showAsyncView, setShowAsyncView] = useState(false);
   const [asyncJobData, setAsyncJobData] = useState(null);
+  const [selectedAlgorithmsForAsync, setSelectedAlgorithmsForAsync] = useState([]);
   
   // Preset state
   const [selectedPreset, setSelectedPreset] = useState(null);
@@ -330,10 +331,15 @@ export default function AlgorithmSelector() {
 
     // Check if async mode is enabled
     if (runAsync) {
+      // Use selected algorithms for async, or fall back to single algorithm if none selected
+      const algorithmsToRun = selectedAlgorithmsForAsync.length > 0
+        ? selectedAlgorithmsForAsync
+        : [selectedAlgorithm];
+
       // Store job data and switch to async view
       setAsyncJobData({
         problem,
-        algorithms: [selectedAlgorithm],
+        algorithms: algorithmsToRun,
         params
       });
       setShowAsyncView(true);
@@ -742,7 +748,13 @@ export default function AlgorithmSelector() {
                       <input
                         type="checkbox"
                         checked={runAsync}
-                        onChange={(e) => setRunAsync(e.target.checked)}
+                        onChange={(e) => {
+                          setRunAsync(e.target.checked);
+                          // If turning off async, clear selected algorithms
+                          if (!e.target.checked) {
+                            setSelectedAlgorithmsForAsync([]);
+                          }
+                        }}
                         className="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer"
                       />
                       <span className="ml-3 font-medium text-gray-700">
@@ -754,10 +766,60 @@ export default function AlgorithmSelector() {
                 </div>
                 <p className="text-xs text-gray-600 mt-2 ml-8">
                   {runAsync
-                    ? '✓ Task will run in background. You can monitor progress in real-time.'
+                    ? '✓ Task will run in background. You can monitor progress in real-time and compare multiple algorithms.'
                     : 'Task will run synchronously and block until complete.'}
                 </p>
               </div>
+
+              {/* Multi-Algorithm Selection (only shown when async mode is enabled) */}
+              {runAsync && (
+                <div className="mb-4 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xl">🔀</span>
+                    <h4 className="font-semibold text-gray-800">Compare Multiple Algorithms (Optional)</h4>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Select additional algorithms to run in parallel and compare their performance on the same problem:
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {algorithms
+                      .filter(algo => algo.status === 'available')
+                      .map(algo => (
+                        <label
+                          key={algo.name}
+                          className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                            selectedAlgorithmsForAsync.includes(algo.name)
+                              ? 'bg-blue-100 border-blue-500 shadow-sm'
+                              : 'bg-white border-gray-300 hover:border-blue-300 hover:bg-blue-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedAlgorithmsForAsync.includes(algo.name)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedAlgorithmsForAsync([...selectedAlgorithmsForAsync, algo.name]);
+                              } else {
+                                setSelectedAlgorithmsForAsync(
+                                  selectedAlgorithmsForAsync.filter(a => a !== algo.name)
+                                );
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="ml-3 text-sm font-medium text-gray-700">
+                            {algo.display_name}
+                          </span>
+                        </label>
+                      ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3 italic">
+                    {selectedAlgorithmsForAsync.length === 0
+                      ? `💡 No algorithms selected. Will run only ${getSelectedAlgorithmObject()?.display_name || selectedAlgorithm}.`
+                      : `✓ Will run ${selectedAlgorithmsForAsync.length} algorithm${selectedAlgorithmsForAsync.length > 1 ? 's' : ''} in parallel for comparison.`}
+                  </p>
+                </div>
+              )}
 
               {/* Run Button - only shown when algorithm is selected */}
               <button
