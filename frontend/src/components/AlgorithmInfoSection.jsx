@@ -114,7 +114,7 @@ export default function AlgorithmInfoSection({ onStartOptimizing }) {
     },
     {
       id: 'differential_evolution',
-      name: 'Differential Evolution (DE)',
+      name: 'Differential Evolution',
       icon: '🧮',
       color: 'from-purple-500 to-indigo-600',
       description: 'A method that optimizes by maintaining a population and creating new candidates by combining existing ones',

@@ -406,7 +406,7 @@ export default function AlgorithmSelector() {
       'genetic_algorithm': 'Genetic Algorithm (GA)',
       'simulated_annealing': 'Simulated Annealing (SA)',
       'ant_colony': 'Ant Colony Optimization for Continuous Domains (ACOR)',
-      'differential_evolution': 'Differential Evolution (DE)'
+      'differential_evolution': 'Differential Evolution'
     };
     return nameMap[algoKey] || algoKey;
   };

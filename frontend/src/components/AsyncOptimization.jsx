@@ -147,6 +147,13 @@ export default function AsyncOptimization({
     }
   };
 
+  // Normalize algorithm display (DE -> "Differential Evolution")
+  const normalizeDisplay = (display, algorithmKey) => {
+    if (display && (/^DE(?:\/|$)/i).test(display)) return 'Differential Evolution';
+    if (typeof algorithmKey === 'string' && algorithmKey.toLowerCase().includes('differential')) return 'Differential Evolution';
+    return display || null;
+  };
+
   // Algorithm name mapping for display
   const getAlgorithmDisplayName = (algoKey) => {
     const nameMap = {
@@ -154,7 +161,7 @@ export default function AsyncOptimization({
       'genetic_algorithm': 'Genetic Algorithm (GA)',
       'simulated_annealing': 'Simulated Annealing (SA)',
       'ant_colony': 'Ant Colony Optimization (ACOR)',
-      'differential_evolution': 'Differential Evolution (DE)'
+      'differential_evolution': 'Differential Evolution'
     };
     return nameMap[algoKey] || algoKey;
   };
@@ -238,7 +245,7 @@ export default function AsyncOptimization({
                     <span className="text-2xl">{getStatusIcon(status.state)}</span>
                     <div>
                       <h3 className="font-semibold text-gray-800">
-                        {getAlgorithmDisplayName(status.algorithm)}
+                        {normalizeDisplay(status.result?.algorithm_display, status.result?.algorithm) || getAlgorithmDisplayName(status.algorithm)}
                       </h3>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-gray-500">Task ID:</span>

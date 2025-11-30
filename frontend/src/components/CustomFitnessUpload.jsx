@@ -351,22 +351,22 @@ const CustomFitnessUpload = () => {
           <div className="results-grid">
             <div className="result-card">
               <div className="result-label">Algorithm</div>
-              <div className="result-value">{result.algorithm}</div>
+              <div className="result-value">{(result.algorithm_display && (/^DE(?:\/|$)/i).test(result.algorithm_display)) ? 'Differential Evolution' : (result.algorithm_display ?? result.algorithm)}</div>
             </div>
 
             <div className="result-card">
               <div className="result-label">Best Fitness</div>
-              <div className="result-value">{result.best_fitness.toExponential(6)}</div>
+              <div className="result-value">{result.best_fitness ? result.best_fitness.toExponential(6) : 'N/A'}</div>
             </div>
 
             <div className="result-card">
               <div className="result-label">Iterations</div>
-              <div className="result-value">{result.iterations_completed}</div>
+              <div className="result-value">{result.iterations_completed ?? result.iterations ?? 'N/A'}</div>
             </div>
 
             <div className="result-card">
               <div className="result-label">Execution Time</div>
-              <div className="result-value">{result.execution_time.toFixed(2)}s</div>
+              <div className="result-value">{result.execution_time ? `${result.execution_time.toFixed(2)}s` : 'N/A'}</div>
             </div>
           </div>
 

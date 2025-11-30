@@ -43,6 +43,15 @@ export default function AlgorithmComparisonView({ results, onBack }) {
     return nameMap[algoKey] || algoKey;
   };
 
+  // Normalize algorithm display (show single-name for Differential Evolution)
+  const normalizeAlgoDisplay = (result) => {
+    const ad = result?.algorithm_display;
+    const alg = result?.algorithm;
+    if (ad && (/^DE(?:\/|$)/i).test(ad)) return 'Differential Evolution';
+    if (typeof alg === 'string' && alg.toLowerCase().includes('differential')) return 'Differential Evolution';
+    return ad ?? getFullAlgoName(alg);
+  };
+
   // Find best result based on objective
   const objective = results[0]?.objective || 'minimize';
   const bestResult = results.reduce((best, current) => {
@@ -69,7 +78,7 @@ export default function AlgorithmComparisonView({ results, onBack }) {
       ? Array.from({ length: results[0].convergence_curve.length }, (_, i) => i)
       : [],
     datasets: results.map((result, index) => ({
-      label: getFullAlgoName(result.algorithm),
+      label: normalizeAlgoDisplay(result),
       data: result.convergence_curve || [],
       borderColor: colors[index % colors.length].border,
       backgroundColor: colors[index % colors.length].bg,
@@ -189,7 +198,7 @@ export default function AlgorithmComparisonView({ results, onBack }) {
                           style={{ backgroundColor: colors[index % colors.length].border }}
                         ></div>
                         <span className="text-sm font-medium text-gray-900">
-                          {getFullAlgoName(result.algorithm)}
+                          {normalizeAlgoDisplay(result)}
                         </span>
                       </div>
                     </td>
@@ -265,7 +274,7 @@ export default function AlgorithmComparisonView({ results, onBack }) {
                       style={{ backgroundColor: colors[index % colors.length].border }}
                     ></div>
                     <h4 className="text-lg font-semibold text-gray-800">
-                      {getFullAlgoName(result.algorithm)}
+                      {normalizeAlgoDisplay(result)}
                     </h4>
                   </div>
                   {isWinner && (
@@ -295,7 +304,7 @@ export default function AlgorithmComparisonView({ results, onBack }) {
           <li className="flex items-start gap-2">
             <span className="text-green-600 font-bold mt-0.5">✓</span>
             <span>
-              <strong>Best Performer:</strong> {getFullAlgoName(bestResult?.algorithm)} achieved the{' '}
+              <strong>Best Performer:</strong> {bestResult ? normalizeAlgoDisplay(bestResult) : ''} achieved the{' '}
               {objective === 'minimize' ? 'lowest' : 'highest'} fitness value of{' '}
               {bestResult?.best_fitness?.toExponential(4)}.
             </span>

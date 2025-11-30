@@ -31,11 +31,12 @@ export default function ResultsDisplay({ result }) {
     const names = {
       'ParticleSwarmOptimization': 'Particle Swarm Optimization (PSO)',
       'GeneticAlgorithm': 'Genetic Algorithm (GA)',
-      'DifferentialEvolution': 'Differential Evolution (DE)',
+      'DifferentialEvolution': 'Differential Evolution',
       'AntColonyOptimization': 'Ant Colony Optimization (ACOR)',
       'particle_swarm': 'Particle Swarm Optimization (PSO)',
       'genetic_algorithm': 'Genetic Algorithm (GA)',
-      'differential_evolution': 'Differential Evolution (DE)',
+      'differential_evolution': 'Differential Evolution',
+      
       'ant_colony': 'Ant Colony Optimization (ACOR)',
     };
     return names[algo] || algo;

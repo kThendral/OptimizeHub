@@ -1,7 +1,8 @@
 from .celery_app import celery
+import time
 import importlib
 import traceback
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import inspect
 
 # Import the registry of fitness functions
@@ -33,7 +34,7 @@ def resolve_fitness_function(func_name_or_callable):
     raise ValueError("fitness_function must be a string name or a callable")
 
 @celery.task(bind=True, acks_late=True, autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 2})
-def run_algorithm(self, algo_key: str, problem_payload: Dict[str, Any], params: Dict[str, Any] = None) -> Dict[str, Any]:
+def run_algorithm(self, algo_key: str, problem_payload: Dict[str, Any], params: Optional[Dict[str, Any]]= None)-> Dict[str, Any]:
     """
     - algo_key: friendly name like 'genetic' or 'genetic_algorithm'
     - problem_payload: JSON-serializable dict describing the problem; must reference a fitness function by name
@@ -85,13 +86,46 @@ def run_algorithm(self, algo_key: str, problem_payload: Dict[str, Any], params: 
             if hasattr(instance, "initialize"):
                 instance.initialize()
             if hasattr(instance, "optimize"):
+                start_time = time.time()
                 instance.optimize()
+                elapsed = time.time() - start_time
+            else:
+                elapsed = None
+
             # Use get_results if present, else assemble a default result
             result = instance.get_results() if hasattr(instance, "get_results") else {"best_solution": instance.best_solution}
+
+            # Ensure common fields are present for frontend normalization
+            if isinstance(result, dict):
+                # add elapsed_time if missing
+                result.setdefault("elapsed_time", elapsed)
+                # infer iterations from convergence_curve if not provided
+                if "iterations" not in result:
+                    conv = result.get("convergence_curve") or result.get("history") or []
+                    try:
+                        result["iterations"] = len(conv) if isinstance(conv, (list, tuple)) and len(conv) > 0 else None
+                    except Exception:
+                        result["iterations"] = None
+                # align iterations_completed key the frontend uses
+                result.setdefault("iterations_completed", result.get("iterations"))
+
             return {"algo": algo_key, "status": "SUCCESS", "result": result}
 
         elif func:
+            start_time = time.time()
             result = func(problem_payload)
+            elapsed = time.time() - start_time
+
+            if isinstance(result, dict):
+                result.setdefault("elapsed_time", elapsed)
+                if "iterations" not in result:
+                    conv = result.get("convergence_curve") or result.get("history") or []
+                    try:
+                        result["iterations"] = len(conv) if isinstance(conv, (list, tuple)) and len(conv) > 0 else None
+                    except Exception:
+                        result["iterations"] = None
+                result.setdefault("iterations_completed", result.get("iterations"))
+
             return {"algo": algo_key, "status": "SUCCESS", "result": result}
         else:
             raise AttributeError(f"No runnable entrypoint found in {full_module_path}")

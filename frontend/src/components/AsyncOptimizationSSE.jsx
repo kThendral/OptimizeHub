@@ -94,9 +94,16 @@ export default function AsyncOptimizationSSE({
       'genetic_algorithm': 'Genetic Algorithm (GA)',
       'simulated_annealing': 'Simulated Annealing (SA)',
       'ant_colony': 'Ant Colony Optimization (ACOR)',
-      'differential_evolution': 'Differential Evolution (DE)'
+      'differential_evolution': 'Differential Evolution'
     };
     return nameMap[algoKey] || algoKey;
+  };
+
+  // Normalize algorithm display (DE -> "Differential Evolution")
+  const normalizeDisplay = (display, algorithmKey) => {
+    if (display && (/^DE(?:\/|$)/i).test(display)) return 'Differential Evolution';
+    if (typeof algorithmKey === 'string' && algorithmKey.toLowerCase().includes('differential')) return 'Differential Evolution';
+    return display || null;
   };
 
   // Copy task ID to clipboard
@@ -109,13 +116,25 @@ export default function AsyncOptimizationSSE({
     // Celery returns: { algo, status, result: { best_solution, best_fitness, ... } }
     // ResultsDisplay expects: { algorithm, best_solution, best_fitness, ... }
 
-    if (!celeryResult || !celeryResult.result) {
-      return null;
-    }
+    if (!celeryResult) return null;
+
+    // Prefer normalized inner result if present
+    const inner = celeryResult.result || celeryResult;
+
+    // Determine algorithm display: prefer algorithm_display -> inner.algorithm -> provided algorithmName
+    const algoDisplay = (inner && (inner.algorithm_display || (typeof inner.algorithm === 'string' && inner.algorithm))) || algorithmName;
+
+    // Ensure iterations and execution_time keys are available at top-level for ResultsDisplay
+    const iterations = inner.iterations_completed ?? inner.iterations ?? inner.params?.max_iterations ?? (inner.convergence_curve ? inner.convergence_curve.length : undefined);
+    const execTime = inner.execution_time ?? inner.elapsed_time ?? inner.runtime ?? null;
 
     return {
-      algorithm: algorithmName,
-      ...celeryResult.result,
+      algorithm: algoDisplay,
+      algorithm_display: algoDisplay,
+      iterations: iterations,
+      iterations_completed: iterations,
+      execution_time: execTime,
+      ...inner,
     };
   };
 
@@ -304,7 +323,7 @@ function TaskCard({
           <span className="text-2xl">{getStatusIcon(status)}</span>
           <div>
             <h3 className="font-semibold text-gray-800">
-              {getAlgorithmDisplayName(algorithm)}
+              {normalizeDisplay(result?.algorithm_display, result?.algorithm) || getAlgorithmDisplayName(algorithm)}
             </h3>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-xs text-gray-500">Task ID:</span>
@@ -357,17 +376,19 @@ function TaskCard({
           <div className="flex items-center gap-2 mb-2">
             <span className="text-green-600 font-semibold">✓ Completed Successfully</span>
           </div>
-          <div className="text-sm text-gray-700 space-y-1">
+            <div className="text-sm text-gray-700 space-y-1">
             <div className="flex justify-between">
               <span className="text-gray-600">Best Fitness:</span>
               <span className="font-mono font-semibold">
-                {result?.result?.best_fitness?.toExponential(4) || 'N/A'}
+                {(result?.best_fitness)?.toExponential
+                  ? (result?.best_fitness).toExponential(4)
+                  : ((result?.best_fitness) ?? 'N/A')}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Iterations:</span>
               <span className="font-medium">
-                {result?.result?.iterations_completed || 'N/A'}
+                {result?.iterations_completed ?? result?.iterations ?? 'N/A'}
               </span>
             </div>
           </div>

@@ -11,6 +11,7 @@ import asyncio
 import logging
 
 from ..celery_app import celery
+from .async_tasks import _normalize_result_payload
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -60,7 +61,11 @@ async def stream_task_status(task_id: str):
 
                 # Handle different task states
                 if async_result.state == "SUCCESS":
-                    status_data["result"] = async_result.result
+                    # Normalize the stored Celery result so SSE messages match GET /async/tasks shape
+                    try:
+                        status_data["result"] = _normalize_result_payload(async_result.result) if async_result.result is not None else None
+                    except Exception:
+                        status_data["result"] = async_result.result
                     logger.info(f"Task {task_id} completed successfully")
                     yield f"data: {json.dumps(status_data)}\n\n"
                     break  # Stop streaming on success
