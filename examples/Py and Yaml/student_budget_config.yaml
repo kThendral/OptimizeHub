@@ -1,0 +1,32 @@
+# Student Monthly Budget Optimization Configuration
+# Maximize savings while meeting essential needs
+
+algorithm: GA  # Genetic Algorithm works well for constrained optimization
+
+parameters:
+  population_size: 50      # Number of budget solutions to explore
+  num_generations: 100     # Number of evolution cycles
+  crossover_rate: 0.8      # Probability of combining two solutions
+  mutation_rate: 0.1       # Probability of random changes
+
+problem:
+  dimensions: 5            # 5 budget categories
+  lower_bound: 0.0         # Minimum allocation per category ($0)
+  upper_bound: 800.0       # Maximum allocation per category ($800)
+
+# Problem Context:
+# - Total monthly budget: $1200
+# - Must allocate across 5 categories: Food, Housing, Transport, Entertainment, Savings
+#
+# Minimum Requirements:
+# - Food: $200/month (groceries, dining)
+# - Housing: $500/month (rent, utilities)
+# - Transportation: $50/month (bus pass)
+# - Entertainment: $0 (flexible)
+# - Savings: Want to maximize!
+#
+# Goal: Find the optimal allocation that:
+# - Meets all minimum requirements
+# - Maximizes savings
+# - Stays within total budget
+# - Balances needs vs wants

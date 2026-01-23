@@ -4,6 +4,27 @@ import { useTaskStream } from '../hooks/useTaskStream.js';
 import ResultsDisplay from './ResultsDisplay';
 import AlgorithmComparisonView from './AlgorithmComparisonView';
 
+// Module-level helper to normalize algorithm display strings.
+// Keeps Differential Evolution variants (e.g. "DE/rand/1/bin") shown as a single name.
+function normalizeDisplay(display, algorithmKey) {
+  // If backend returned a structured object, prefer its display/name fields
+  if (display && typeof display === 'object') {
+    return display.display ?? display.name ?? String(display);
+  }
+
+  const disp = (display || '').toString().trim();
+  const alg = (algorithmKey || '').toString();
+
+  // Treat DE/* and other DE variants as "Differential Evolution"
+  if (disp && (/^DE(?:\/|$)/i).test(disp)) return 'Differential Evolution';
+  if (alg && alg.toLowerCase().includes('differential')) return 'Differential Evolution';
+
+  // Fallback to display or algorithm key or 'Unknown'
+  if (disp) return disp;
+  if (alg) return alg;
+  return 'Unknown';
+}
+
 /**
  * AsyncOptimizationSSE Component (with Server-Sent Events)
  *
@@ -99,12 +120,7 @@ export default function AsyncOptimizationSSE({
     return nameMap[algoKey] || algoKey;
   };
 
-  // Normalize algorithm display (DE -> "Differential Evolution")
-  const normalizeDisplay = (display, algorithmKey) => {
-    if (display && (/^DE(?:\/|$)/i).test(display)) return 'Differential Evolution';
-    if (typeof algorithmKey === 'string' && algorithmKey.toLowerCase().includes('differential')) return 'Differential Evolution';
-    return display || null;
-  };
+  
 
   // Copy task ID to clipboard
   const copyToClipboard = (text) => {

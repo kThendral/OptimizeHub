@@ -1,0 +1,28 @@
+# Delivery Route Optimization Configuration
+# Small Bakery - Morning Delivery Route Planning
+
+algorithm: PSO  # Particle Swarm Optimization works well for route problems
+
+parameters:
+  num_particles: 40        # Number of potential solutions to explore
+  max_iterations: 150      # Number of optimization cycles
+  w: 0.7                   # Inertia weight (exploration vs exploitation balance)
+  c1: 1.5                  # Cognitive parameter (personal best influence)
+  c2: 1.7                  # Social parameter (global best influence)
+
+problem:
+  dimensions: 5            # 5 delivery stops
+  lower_bound: 1.0         # Minimum distance per segment (1 km)
+  upper_bound: 15.0        # Maximum distance per segment (15 km)
+
+# Problem Context:
+# - Bakery opens at 6 AM
+# - Must deliver to 5 customers by 9 AM
+# - Vehicle averages 40 km/h in city traffic
+# - Fuel cost: $0.15 per km
+# - Want to minimize: total distance + fuel cost + time penalties
+#
+# Optimal solution will balance:
+# - Short total distance (less fuel)
+# - Avoiding very long segments (traffic delays)
+# - Reasonably balanced route (operational efficiency)

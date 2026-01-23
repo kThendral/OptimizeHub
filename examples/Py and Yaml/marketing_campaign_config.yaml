@@ -1,0 +1,36 @@
+# Marketing Campaign Budget Allocation Configuration
+# Small E-commerce Business - Customer Acquisition Optimization
+
+algorithm: DE  # Differential Evolution handles complex constraints well
+
+parameters:
+  population_size: 60      # Number of budget allocation strategies
+  num_generations: 120     # Number of evolution cycles
+  F: 0.8                   # Differential weight (mutation scale)
+  CR: 0.9                  # Crossover probability
+
+problem:
+  dimensions: 4            # 4 marketing channels
+  lower_bound: 0.0         # Minimum allocation ($0 - can skip a channel)
+  upper_bound: 3000.0      # Maximum allocation per channel ($3000)
+
+# Problem Context:
+# - Total marketing budget: $5000/month
+# - Goal: Maximize customer acquisition
+#
+# Marketing Channels & Expected ROI:
+# 1. Social Media Ads: 5 customers per $100 (good engagement)
+# 2. Google Ads: 8 customers per $100 (high intent traffic)
+# 3. Email Marketing: 12 customers per $100 (best ROI, existing list)
+# 4. Influencer Partnerships: 4 customers per $100 (brand awareness bonus)
+#
+# Constraints:
+# - Each active channel needs minimum $200 (or $0 to skip)
+# - Must stay within total budget
+# - Want to diversify (don't rely on single channel)
+#
+# Optimal solution will:
+# - Prioritize high-ROI channels (Email, Google Ads)
+# - Include some influencer spend (long-term brand value)
+# - Diversify across multiple channels (risk management)
+# - Maximize total customer acquisition

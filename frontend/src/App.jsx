@@ -55,7 +55,7 @@ function App() {
         
         {/* Main Algorithm Selector with embedded forms and results */}
         <div className="card p-6 rounded-lg shadow-md">
-          <AlgorithmSelector />
+          <AlgorithmSelector onHome={navigateToLanding} />
         </div>
       </div>
     </div>
