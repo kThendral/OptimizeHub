@@ -42,66 +42,54 @@
 
 ## 🚀 Quick Start
 
-### Prerequisites
+**Requirements:** Python 3.11+, Node.js 18+, Docker (for custom fitness functions)
 
-- **Python 3.11+**
-- **Node.js 18+** and npm
-- **Docker** (required for custom fitness functions)
-- Git
+### 1. Install
 
-### Installation
+```bash
+git clone https://github.com/kThendral/OptimizeHub.git
+cd OptimizeHub
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/kThendral/OptimizeHub.git
-   cd OptimizeHub
-   ```
+# Backend
+cd backend && python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
 
-2. **Set up the Backend**
-   ```bash
-   cd backend
-   
-   # Create virtual environment (optional but recommended)
-   python -m venv venv
-   
-   # Activate virtual environment
-   # On Windows:
-   venv\Scripts\activate
-   # On macOS/Linux:
-   source venv/bin/activate
-   
-   # Install dependencies
-   pip install -r requirements.txt
-   ```
+# Frontend
+cd ../frontend && npm install
+```
 
-3. **Set up the Frontend**
-   ```bash
-   cd ../frontend
-   
-   # Install dependencies
-   npm install
-   ```
+### 2. Configure Environment
 
-### Running the Application
+**`backend/.env`:**
+```
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+**`frontend/.env`:**
+```
+VITE_API_URL=http://localhost:8000
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+```
+
+### 3. Run
+
+> **Start backend first** — the frontend connects to it on load.
 
 **Terminal 1 - Backend:**
 ```bash
-cd backend
+cd backend && source venv/bin/activate
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Backend will be available at: `http://localhost:8000`
-API Documentation: `http://localhost:8000/docs`
-
 **Terminal 2 - Frontend:**
 ```bash
-cd frontend
-npm run dev
+cd frontend && npm run dev
 ```
 
-Frontend will be available at: `http://localhost:5173`
-
-**⚠️ Important:** Access the frontend via `http://localhost:5173` (NOT `127.0.0.1:5173`) to avoid CORS issues.
+Open **http://localhost:5173** (not `127.0.0.1:5173` — causes CORS issues).
 
 ---
 
@@ -444,33 +432,6 @@ npm run dev
 
 ---
 
-## 🎨 Customization
-
-### Change Color Scheme
-
-Edit `frontend/src/styles/theme.css`:
-
-```css
-:root {
-  --color-primary: #5B21B6;    /* Deep Violet */
-  --color-secondary: #F3E8FF;  /* Light Purple */
-  --color-accent: #00D4FF;     /* Cyan */
-}
-```
-
-### Add New Algorithm
-
-1. Create algorithm class in `backend/app/algorithms/`
-2. Inherit from `OptimizationAlgorithm`
-3. Implement `initialize()` and `optimize()`
-4. Register in `backend/app/config.py`
-5. Create parameter form in `frontend/src/components/forms/`
-6. Add conditional rendering in `AlgorithmSelector.jsx`
-
-See `COMPONENT_STRUCTURE.md` for detailed instructions.
-
----
-
 ## 🛠️ Technology Stack
 
 ### Backend
@@ -507,31 +468,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🐛 Troubleshooting
 
-### "Failed to fetch" error
+| Error | Fix |
+|-------|-----|
+| `ERR_CONNECTION_TIMED_OUT` | Start backend first, then refresh |
+| `Failed to fetch algorithms` | Check backend is on port 8000; verify `VITE_API_URL` in `frontend/.env` |
+| `SUPABASE_URL must be set` | Create `backend/.env` with your Supabase credentials |
+| YAML parsing errors | Use 2-space indentation; ensure `algorithm`, `problem`, `params` sections exist |
 
-- ✅ Make sure backend is running on port 8000
-- ✅ Access frontend via `http://localhost:5173` (NOT `127.0.0.1:5173`)
-- ✅ Check browser console for detailed errors
+> **Note:** Redis and Celery are only needed for async optimization tasks, not basic usage.
 
-### YAML parsing errors
-
-- ✅ Ensure proper indentation (2 spaces)
-- ✅ Check that `algorithm`, `problem`, and `params` sections exist
-- ✅ Verify parameter names match backend expectations
-
----
-
-## 📚 Documentation
-
-- **API Documentation**: http://localhost:8000/docs (when backend is running)
-
----
-
-## 🙏 Acknowledgments
-
-- Inspired by classic optimization algorithm benchmarks
-- Built with modern web technologies
-- Deep Violet color scheme for visual appeal
+**API Docs:** http://localhost:8000/docs (when backend is running)
 
 ---
 

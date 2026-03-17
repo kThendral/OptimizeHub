@@ -8,6 +8,9 @@ import inspect
 # Import the registry of fitness functions
 from . import problem_functions
 
+# Import validation for parameter warnings
+from .core.validation import validate_algorithm_params
+
 # mapping friendly keys to algorithm module filenames
 ALGO_ALIAS = {
     "genetic": "genetic_algorithm",
@@ -80,6 +83,9 @@ def run_algorithm(self, algo_key: str, problem_payload: Dict[str, Any], params: 
                 if callable(func):
                     break
 
+        # Validate parameters and collect warnings
+        _, _, param_warnings = validate_algorithm_params(algo_key, params)
+
         if alg_class:
             # instantiate and run
             instance = alg_class(problem_payload, params)
@@ -108,6 +114,9 @@ def run_algorithm(self, algo_key: str, problem_payload: Dict[str, Any], params: 
                         result["iterations"] = None
                 # align iterations_completed key the frontend uses
                 result.setdefault("iterations_completed", result.get("iterations"))
+                # Include parameter warnings for frontend display
+                if param_warnings:
+                    result["warnings"] = param_warnings
 
             return {"algo": algo_key, "status": "SUCCESS", "result": result}
 
@@ -125,6 +134,9 @@ def run_algorithm(self, algo_key: str, problem_payload: Dict[str, Any], params: 
                     except Exception:
                         result["iterations"] = None
                 result.setdefault("iterations_completed", result.get("iterations"))
+                # Include parameter warnings for frontend display
+                if param_warnings:
+                    result["warnings"] = param_warnings
 
             return {"algo": algo_key, "status": "SUCCESS", "result": result}
         else:

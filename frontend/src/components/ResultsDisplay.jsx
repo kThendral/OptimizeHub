@@ -368,6 +368,31 @@ export default function ResultsDisplay({ result }) {
         </div>
       </div>
 
+      {/* Parameter Warnings */}
+      {result.warnings && result.warnings.length > 0 && (
+        <div className="bg-yellow-50 rounded-xl shadow-md border-2 border-yellow-300 overflow-hidden">
+          <div className="bg-gradient-to-r from-yellow-500 to-amber-500 px-6 py-3">
+            <h4 className="text-lg font-bold text-white flex items-center gap-2">
+              <span>⚠️</span> Parameter Warnings ({result.warnings.length})
+            </h4>
+          </div>
+          <div className="p-6">
+            <ul className="space-y-3">
+              {result.warnings.map((warning, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  <span className="text-yellow-600 font-bold mt-0.5">•</span>
+                  <span className="text-sm text-yellow-800 leading-relaxed">{warning}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-yellow-600 mt-4 pt-3 border-t border-yellow-300 italic">
+              These warnings are educational suggestions to help you get better results.
+              Your optimization still ran successfully with the parameters you provided.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Best Solution Card */}
       <div className="bg-white rounded-xl shadow-md border-2 border-purple-200 overflow-hidden">
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-3">

@@ -20,6 +20,7 @@ export default function AlgorithmSelector({ onHome }) {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [warnings, setWarnings] = useState([]);
   const [result, setResult] = useState(null);
 
   // Tab state: 'form', 'yaml', or 'custom'
@@ -99,8 +100,22 @@ export default function AlgorithmSelector({ onHome }) {
   // Load available algorithms on mount
   useEffect(() => {
     fetchAlgorithms()
-      .then(setAlgorithms)
-      .catch(err => setError(`Failed to load algorithms: ${err.message}`));
+      .then(algorithms => {
+        setAlgorithms(algorithms);
+        // Only set error if we got an empty array but expected algorithms
+        // (connection errors return empty array, so no error needed)
+        if (algorithms.length === 0) {
+          console.info('No algorithms loaded. Backend may not be running. This is OK for testing auth.');
+        }
+      })
+      .catch(err => {
+        // Only show error if it's not a connection issue
+        if (!err.message.includes('Failed to fetch') && !err.message.includes('timeout')) {
+          setError(`Failed to load algorithms: ${err.message}`);
+        } else {
+          console.info('Backend connection failed. This is expected if backend is not running.');
+        }
+      });
   }, []);
 
   // Initialize real-world problem data when fitness function changes
@@ -205,6 +220,7 @@ export default function AlgorithmSelector({ onHome }) {
   const handleRunFromYAML = async () => {
     setLoading(true);
     setError(null);
+    setWarnings([]);
     setResult(null);
 
     try {
@@ -251,8 +267,15 @@ export default function AlgorithmSelector({ onHome }) {
 
       const res = await executeAlgorithm(payload);
       setResult(res);
+      // Extract and display any warnings from the API response
+      if (res.warnings && res.warnings.length > 0) {
+        setWarnings(res.warnings);
+      } else {
+        setWarnings([]);
+      }
     } catch (err) {
       setError(err.message);
+      setWarnings([]);
     } finally {
       setLoading(false);
     }
@@ -347,6 +370,7 @@ export default function AlgorithmSelector({ onHome }) {
       // Run synchronously (existing behavior)
       setLoading(true);
       setError(null);
+      setWarnings([]);
       setResult(null);
 
       try {
@@ -359,8 +383,15 @@ export default function AlgorithmSelector({ onHome }) {
 
         const res = await executeAlgorithm(payload);
         setResult(res);
+        // Extract and display any warnings from the API response
+        if (res.warnings && res.warnings.length > 0) {
+          setWarnings(res.warnings);
+        } else {
+          setWarnings([]);
+        }
       } catch (err) {
         setError(err.message);
+        setWarnings([]);
       } finally {
         setLoading(false);
       }
@@ -397,6 +428,7 @@ export default function AlgorithmSelector({ onHome }) {
     // Clear any previous results
     setResult(null);
     setError(null);
+    setWarnings([]);
   };
 
   // Algorithm name mapping for display
@@ -461,6 +493,39 @@ export default function AlgorithmSelector({ onHome }) {
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           <strong>Error:</strong> {error}
+        </div>
+      )}
+
+      {/* Warnings Display */}
+      {warnings.length > 0 && (
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl flex-shrink-0">⚠️</span>
+            <div className="flex-1">
+              <h4 className="font-semibold text-yellow-800 mb-2">
+                Parameter Warnings ({warnings.length})
+              </h4>
+              <ul className="space-y-2">
+                {warnings.map((warning, index) => (
+                  <li key={index} className="text-sm text-yellow-700 leading-relaxed">
+                    {warning}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-yellow-600 mt-3 italic">
+                These warnings are educational suggestions. Your optimization still ran successfully.
+              </p>
+            </div>
+            <button
+              onClick={() => setWarnings([])}
+              className="text-yellow-600 hover:text-yellow-800 transition-colors"
+              aria-label="Dismiss warnings"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 

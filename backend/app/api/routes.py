@@ -57,17 +57,20 @@ async def run_optimization(request: OptimizationRequest) -> OptimizationResult:
         )
 
     # Validate algorithm parameters
-    is_valid, errors, warnings = validate_algorithm_params(request.algorithm, request.params)
+    is_valid, param_errors, param_warnings = validate_algorithm_params(request.algorithm, request.params)
 
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "error": "Invalid algorithm parameters",
-                "validation_errors": errors,
-                "warnings": warnings
+                "validation_errors": param_errors,
+                "warnings": param_warnings
             }
         )
+
+    # Combine all warnings (from problem and parameter validation)
+    all_warnings = (warnings if warnings else []) + (param_warnings if param_warnings else [])
 
     # Execute algorithm
     result = executor.run_algorithm(
@@ -75,6 +78,10 @@ async def run_optimization(request: OptimizationRequest) -> OptimizationResult:
         problem=problem_dict,
         params=request.params
     )
+
+    # Add warnings to result so users see educational messages
+    if all_warnings:
+        result['warnings'] = all_warnings
 
     # Handle not_implemented status with proper HTTP response
     # (still returns 200 but with status field indicating not_implemented)
@@ -324,6 +331,35 @@ async def validate_problem_endpoint(problem: ProblemInput) -> ValidationResult:
         warnings=warnings if warnings else None,
         problem_summary=problem_summary
     )
+
+
+@router.post("/validate/params")
+async def validate_params_endpoint(
+    algorithm: str,
+    params: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Validate algorithm parameters and get educational warnings.
+
+    This endpoint allows frontend to validate parameters before running optimization,
+    showing users helpful warnings about parameter choices that may affect results.
+
+    Args:
+        algorithm: Algorithm name (e.g., 'particle_swarm', 'genetic_algorithm')
+        params: Dictionary of algorithm parameters
+
+    Returns:
+        Validation result with is_valid, errors, and educational warnings
+    """
+    is_valid, errors, warnings = validate_algorithm_params(algorithm, params)
+
+    return {
+        "is_valid": is_valid,
+        "algorithm": algorithm,
+        "errors": errors if errors else None,
+        "warnings": warnings if warnings else None,
+        "params_validated": params
+    }
 
 
 @router.get("/health", response_model=HealthResponse)

@@ -12,6 +12,7 @@ router = APIRouter(prefix="/async", tags=["async"])
 class ProblemRequest(BaseModel):
     problem: Dict[str, Any]
     algorithms: List[str]  # e.g. ["genetic", "simulated_annealing"]
+    params: Dict[str, Any] = None  # Optional algorithm parameters (shared across algorithms)
 
 def _format_algorithm_field(algo_str: Any) -> Any:
     """
@@ -179,7 +180,9 @@ def optimize(problem_req: ProblemRequest):
         problem_payload["fitness_function"] = problem_payload.pop("fitness_function_name")
 
     # Create a group of signatures using the registered Celery task helper
-    sigs = [run_algorithm.s(algo, problem_payload) for algo in problem_req.algorithms]
+    # Pass params to each algorithm task (params are shared across all algorithms in async mode)
+    algo_params = problem_req.params or {}
+    sigs = [run_algorithm.s(algo, problem_payload, algo_params) for algo in problem_req.algorithms]
     job = group(sigs)
     group_result = job.apply_async()
     child_ids = [res.id for res in group_result.results]

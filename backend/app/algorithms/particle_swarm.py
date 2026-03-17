@@ -246,3 +246,19 @@ class ParticleSwarmOptimization(OptimizationAlgorithm):
             return new_fitness < old_fitness
         else:
             return new_fitness > old_fitness
+
+    def get_results(self) -> Dict[str, Any]:
+        """
+        Return PSO results with best_fitness included.
+
+        Returns:
+            Dictionary with algorithm name, best_solution, best_fitness,
+            convergence_curve, and parameters.
+        """
+        return {
+            "algorithm": self.__class__.__name__,
+            "best_solution": self.best_solution,
+            "best_fitness": float(self.global_best_score) if self.global_best_score is not None else None,
+            "convergence_curve": self.convergence_curve,
+            "params": self.params
+        }

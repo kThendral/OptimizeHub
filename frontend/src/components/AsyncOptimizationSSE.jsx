@@ -144,12 +144,16 @@ export default function AsyncOptimizationSSE({
     const iterations = inner.iterations_completed ?? inner.iterations ?? inner.params?.max_iterations ?? (inner.convergence_curve ? inner.convergence_curve.length : undefined);
     const execTime = inner.execution_time ?? inner.elapsed_time ?? inner.runtime ?? null;
 
+    // Extract warnings from the result
+    const warnings = inner.warnings || [];
+
     return {
       algorithm: algoDisplay,
       algorithm_display: algoDisplay,
       iterations: iterations,
       iterations_completed: iterations,
       execution_time: execTime,
+      warnings: warnings,
       ...inner,
     };
   };
@@ -411,6 +415,30 @@ function TaskCard({
           <p className="text-xs text-gray-500 mt-2 italic">
             Click "View Results" below to see detailed analysis and charts
           </p>
+        </div>
+      )}
+
+      {/* Warnings Display for Async Results */}
+      {status === 'SUCCESS' && result?.warnings && result.warnings.length > 0 && (
+        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded">
+          <div className="flex items-start gap-2">
+            <span className="text-lg flex-shrink-0">⚠️</span>
+            <div className="flex-1">
+              <h4 className="font-semibold text-yellow-800 text-sm mb-1">
+                Parameter Warnings ({result.warnings.length})
+              </h4>
+              <ul className="space-y-1">
+                {result.warnings.map((warning, index) => (
+                  <li key={index} className="text-xs text-yellow-700 leading-relaxed">
+                    {warning}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-yellow-600 mt-2 italic">
+                These are educational suggestions. Results are still valid.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

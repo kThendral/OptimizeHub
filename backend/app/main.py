@@ -8,9 +8,15 @@ from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 from app.api.async_tasks import router as async_router
 import logging
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
 
 from app.api.routes import router
 from app.api.sse import router as sse_router
+from app.api.auth import router as auth_router
 from app.config import get_available_algorithms, ALGORITHM_REGISTRY
 
 # Configure logging
@@ -135,6 +141,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(router, prefix="/api", tags=["Optimization"])
 app.include_router(async_router)
 app.include_router(sse_router, prefix="/api", tags=["SSE"])
+app.include_router(auth_router, prefix="/api", tags=["auth"])
 
 # ==============================================================================
 # Root Endpoint

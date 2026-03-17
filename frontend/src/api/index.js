@@ -4,7 +4,16 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 export async function fetchAlgorithms() {
   try {
     console.log('Fetching algorithms from:', `${API_BASE}/api/algorithms`);
-    const res = await fetch(`${API_BASE}/api/algorithms`);
+    
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
+    const res = await fetch(`${API_BASE}/api/algorithms`, {
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
     console.log('Response status:', res.status, res.statusText);
     
     if (!res.ok) {
@@ -15,6 +24,12 @@ export async function fetchAlgorithms() {
     // Return full algorithm objects with status information
     return data.algorithms;
   } catch (error) {
+    // Don't log connection errors as errors - backend might not be running yet
+    if (error.name === 'AbortError' || error.message.includes('Failed to fetch') || error.message.includes('timeout')) {
+      console.warn('Backend not available. Algorithms will load when backend is running.');
+      // Return empty array so UI doesn't break
+      return [];
+    }
     console.error('Fetch algorithms error:', error);
     throw error;
   }

@@ -32,3 +32,6 @@ htmlcov/
 
 # Logs
 *.log
+
+# Redis
+dump.rdb

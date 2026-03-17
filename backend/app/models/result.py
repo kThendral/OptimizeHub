@@ -57,6 +57,11 @@ class OptimizationResult(BaseModel):
         description="Error message if status is 'error'"
     )
 
+    warnings: Optional[List[str]] = Field(
+        None,
+        description="Educational warnings about parameter choices that may affect results"
+    )
+
     # Real-world problem results
     problem_type: Optional[str] = Field(
         None,

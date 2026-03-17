@@ -300,3 +300,19 @@ class GeneticAlgorithm(OptimizationAlgorithm):
             return float(result)
         except Exception as e:
             raise RuntimeError(f"Error evaluating fitness function for individual {individual}: {str(e)}")
+
+    def get_results(self) -> Dict[str, Any]:
+        """
+        Return GA results with best_fitness included.
+
+        Returns:
+            Dictionary with algorithm name, best_solution, best_fitness,
+            convergence_curve, and parameters.
+        """
+        return {
+            "algorithm": self.__class__.__name__,
+            "best_solution": self.best_solution,
+            "best_fitness": float(self.best_fitness) if self.best_fitness is not None else None,
+            "convergence_curve": self.convergence_curve,
+            "params": self.params
+        }
