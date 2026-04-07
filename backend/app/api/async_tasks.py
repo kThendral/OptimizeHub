@@ -184,7 +184,19 @@ def optimize(problem_req: ProblemRequest):
     algo_params = problem_req.params or {}
     sigs = [run_algorithm.s(algo, problem_payload, algo_params) for algo in problem_req.algorithms]
     job = group(sigs)
-    group_result = job.apply_async()
+    try:
+        group_result = job.apply_async()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "Task queue unavailable",
+                "message": (
+                    "Could not submit optimization tasks — the task queue (Redis/Celery) "
+                    f"is unreachable. Please try again later. Details: {exc}"
+                ),
+            },
+        )
     child_ids = [res.id for res in group_result.results]
 
     return {"group_id": group_result.id, "task_ids": child_ids}

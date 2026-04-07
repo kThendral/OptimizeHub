@@ -1,356 +1,282 @@
 """
-Algorithm execution service for running optimization algorithms.
+Algorithm execution service for running optimization algorithms via Modal.
+
+All algorithm execution is now delegated to Modal cloud functions, which enforce
+the same security constraints as the original Docker sandbox:
+  - 30-second timeout, 512 MB memory, no network access.
+
+Public API (function signatures, return types) is unchanged so that API routes
+and Celery tasks do not need modification.
 """
+
 import time
-import importlib
 from typing import Dict, Any, Optional
-from app.config import ALGORITHM_REGISTRY, is_algorithm_available, get_algorithm_info, EXECUTION_TIMEOUT
-from app.core.utils import get_fitness_function, create_problem_dict
+
+from app.config import (
+    ALGORITHM_REGISTRY,
+    is_algorithm_available,
+    get_algorithm_info,
+    EXECUTION_TIMEOUT,
+)
+from app.core.utils import get_fitness_function
 
 
 class AlgorithmExecutor:
     """
     Service class for executing optimization algorithms.
 
-    Handles algorithm instantiation, execution, and result formatting.
-    Gracefully handles both implemented and not-yet-implemented algorithms.
+    Delegates execution to Modal cloud functions while preserving the original
+    result format expected by API routes and Celery tasks.
     """
 
     def __init__(self):
-        """Initialize the algorithm executor."""
         self.registry = ALGORITHM_REGISTRY
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def run_algorithm(
         self,
         algorithm_name: str,
         problem: Dict[str, Any],
-        params: Dict[str, Any]
+        params: Dict[str, Any],
     ) -> Dict[str, Any]:
         """
-        Run an optimization algorithm.
+        Run an optimization algorithm via Modal.
 
         Args:
-            algorithm_name: Name of the algorithm to run (e.g., 'particle_swarm')
-            problem: Problem definition dictionary
-            params: Algorithm-specific parameters
+            algorithm_name: Registry key (e.g. ``"genetic_algorithm"``).
+            problem:        Problem definition dict (dimensions, bounds, etc.).
+            params:         Algorithm-specific parameter overrides.
 
         Returns:
-            Dictionary with results or error information
+            Result dict with status, best_solution, convergence_curve, etc.
         """
-        # Check if algorithm exists in registry
         if algorithm_name not in self.registry:
             return self._create_error_result(
                 algorithm_name,
                 f"Unknown algorithm '{algorithm_name}'",
-                "error"
+                "error",
             )
 
-        # Check if algorithm is implemented
         if not is_algorithm_available(algorithm_name):
-            algorithm_info = get_algorithm_info(algorithm_name)
-            return self._create_not_implemented_result(algorithm_name, algorithm_info)
+            algo_info = get_algorithm_info(algorithm_name)
+            return self._create_not_implemented_result(algorithm_name, algo_info)
 
-        # Execute the algorithm
+        # Fast pre-flight validation: check fitness function name / problem config
+        # before incurring Modal cold-start cost.
+        validation_error = self._validate_problem_preflight(algorithm_name, problem)
+        if validation_error:
+            return validation_error
+
+        # Delegate execution to Modal
         try:
-            result = self._execute_algorithm(algorithm_name, problem, params)
+            result = self._execute_via_modal(algorithm_name, problem, params)
             return result
-        except Exception as e:
+        except ValueError as exc:
+            # Validation errors from Modal runner (bad algorithm name, missing fitness fn)
+            return self._create_error_result(algorithm_name, str(exc), "error")
+        except Exception as exc:
+            # Classify Modal-specific exceptions for user-friendly messages
+            exc_type = type(exc).__name__
+            err_str = str(exc)
+            if exc_type in ("FunctionTimeoutError", "TimeoutError") or "timeout" in err_str.lower():
+                return self._create_error_result(
+                    algorithm_name,
+                    "Optimization exceeded the 30-second time limit. "
+                    "Try reducing 'max_iterations' or 'population_size'.",
+                    "timeout",
+                )
+            if exc_type in ("ExecutionError", "UserCodeException"):
+                return self._create_error_result(
+                    algorithm_name,
+                    f"Algorithm execution failed in the sandbox: {err_str}",
+                    "error",
+                )
             return self._create_error_result(
                 algorithm_name,
-                f"Execution error: {str(e)}",
-                "error"
+                f"Unexpected error during execution: {err_str}",
+                "error",
             )
 
-    def _execute_algorithm(
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _validate_problem_preflight(
         self,
         algorithm_name: str,
         problem: Dict[str, Any],
-        params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    ) -> Optional[Dict[str, Any]]:
         """
-        Internal method to execute an available algorithm.
-
-        Args:
-            algorithm_name: Name of the algorithm
-            problem: Problem definition
-            params: Algorithm parameters
-
-        Returns:
-            Algorithm results dictionary
+        Lightweight validation before calling Modal (avoids cold-start on bad input).
+        Returns an error result dict on failure, or None on success.
         """
-        start_time = time.time()
+        problem_type = problem.get("problem_type")
 
-        # Get algorithm info from registry
-        algo_info = get_algorithm_info(algorithm_name)
-
-        # Dynamically import the algorithm class
-        module_path = algo_info['module']
-        class_name = algo_info['class_name']
-
-        try:
-            module = importlib.import_module(module_path)
-            algorithm_class = getattr(module, class_name)
-        except (ImportError, AttributeError) as e:
-            return self._create_error_result(
-                algorithm_name,
-                f"Failed to import algorithm: {str(e)}",
-                "error"
-            )
-
-        # Get fitness function
-        # Handle real-world problems differently
-        problem_type = problem.get('problem_type')
-        
-        if problem_type == 'knapsack':
-            # Import knapsack fitness function creator
-            from app.core.real_world_problems import create_knapsack_fitness
-            
-            items = problem.get('items', [])
-            capacity = problem.get('capacity', 10)
-            
-            if not items:
+        if problem_type == "knapsack":
+            if not problem.get("items"):
                 return self._create_error_result(
-                    algorithm_name,
-                    "Knapsack problem requires 'items' list",
-                    "error"
+                    algorithm_name, "Knapsack problem requires 'items' list", "error"
                 )
-            
-            # Extract weights and values
-            weights = [item['weight'] for item in items]
-            values = [item['value'] for item in items]
-            
-            # Create fitness function
-            fitness_function = create_knapsack_fitness(weights, values, capacity)
-            
-            # Set bounds to [0, 1] for binary selection
-            problem['bounds'] = [(0, 1)] * len(items)
-            problem['dimensions'] = len(items)
-            
-        elif problem_type == 'tsp':
-            # Import TSP fitness function creator
-            from app.core.real_world_problems import create_tsp_fitness
-            
-            cities = problem.get('cities', [])
-            
-            if not cities or len(cities) < 3:
+
+        elif problem_type == "tsp":
+            cities = problem.get("cities", [])
+            if len(cities) < 3:
                 return self._create_error_result(
-                    algorithm_name,
-                    "TSP problem requires at least 3 cities",
-                    "error"
+                    algorithm_name, "TSP problem requires at least 3 cities", "error"
                 )
-            
-            # Extract city coordinates
-            city_coords = [(city['x'], city['y']) for city in cities]
-            
-            # Create fitness function
-            fitness_function = create_tsp_fitness(city_coords)
-            
-            # Set bounds to [0, 1] for permutation encoding
-            problem['bounds'] = [(0, 1)] * len(cities)
-            problem['dimensions'] = len(cities)
-            
+
         else:
-            # Standard benchmark function
-            fitness_function_name = problem.get('fitness_function_name')
-            if not fitness_function_name:
+            fitness_fn_name = problem.get("fitness_function_name")
+            if not fitness_fn_name:
                 return self._create_error_result(
                     algorithm_name,
                     "Missing 'fitness_function_name' in problem definition",
-                    "error"
+                    "error",
                 )
-
             try:
-                fitness_function = get_fitness_function(fitness_function_name)
-            except ValueError as e:
-                return self._create_error_result(
-                    algorithm_name,
-                    str(e),
-                    "error"
-                )
+                get_fitness_function(fitness_fn_name)  # validate existence only
+            except ValueError as exc:
+                return self._create_error_result(algorithm_name, str(exc), "error")
 
-        # Create problem dictionary for algorithm
-        problem_dict = create_problem_dict(
-            dimensions=problem['dimensions'],
-            bounds=problem['bounds'],
-            fitness_function=fitness_function,
-            objective=problem.get('objective', 'minimize')
-        )
+        return None
 
-        # Merge default params with user-provided params
-        default_params = algo_info['default_params'].copy()
-        default_params.update(params)
+    def _execute_via_modal(
+        self,
+        algorithm_name: str,
+        problem: Dict[str, Any],
+        params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Dispatch the algorithm to Modal and translate the result.
 
-        # Instantiate and run algorithm
-        try:
-            algorithm = algorithm_class(problem_dict, default_params)
-            algorithm.initialize()
-            algorithm.optimize()
-            raw_results = algorithm.get_results()
-        except Exception as e:
-            return self._create_error_result(
-                algorithm_name,
-                f"Algorithm execution failed: {str(e)}",
-                "error"
-            )
+        Uses Modal's synchronous `.remote()` API so that the existing
+        synchronous callers (FastAPI routes, tests) do not need to change.
+        """
+        wall_start = time.time()
 
-        # Calculate execution time
-        execution_time = time.time() - start_time
+        # Merge registry defaults with caller-supplied params
+        algo_info = get_algorithm_info(algorithm_name)
+        merged_params = {**algo_info["default_params"], **params}
 
-        # Check if execution timed out
-        status = "timeout" if execution_time >= EXECUTION_TIMEOUT else "success"
+        # Import inside method to avoid module-level Modal client initialisation
+        from executor.modal_runner import run_algorithm as _modal_run
 
-        # Format results
-        result = {
-            'algorithm': raw_results.get('algorithm', class_name),
-            'status': status,
-            'best_solution': raw_results.get('best_solution'),
-            'best_fitness': (
-                raw_results['convergence_curve'][-1]
-                if raw_results.get('convergence_curve')
-                else None
-            ),
-            'convergence_curve': raw_results.get('convergence_curve'),
-            'params': raw_results.get('params', default_params),
-            'iterations_completed': len(raw_results.get('convergence_curve', [])),
-            'execution_time': round(execution_time, 3),
-            'error_message': None
+        raw_result: dict = _modal_run.remote(algorithm_name, problem, merged_params)
+
+        wall_time = time.time() - wall_start
+
+        result: Dict[str, Any] = {
+            "algorithm": raw_result.get("algorithm", algorithm_name),
+            "status": "success",
+            "best_solution": raw_result.get("best_solution"),
+            "best_fitness": raw_result.get("best_fitness"),
+            "convergence_curve": raw_result.get("convergence_curve", []),
+            "params": raw_result.get("params", merged_params),
+            "iterations_completed": len(raw_result.get("convergence_curve") or []),
+            "execution_time": round(wall_time, 3),
+            "error_message": None,
         }
 
-        # Add problem-specific decoded results for real-world problems
+        # Add problem-specific decoded context (knapsack items chosen, TSP route, etc.)
         from app.core.solution_decoder import add_problem_context_to_result
         result = add_problem_context_to_result(result, problem)
 
         return result
 
+    # ------------------------------------------------------------------
+    # Result factory helpers (unchanged from original)
+    # ------------------------------------------------------------------
+
     def _create_not_implemented_result(
         self,
         algorithm_name: str,
-        algorithm_info: Dict[str, Any]
+        algorithm_info: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """
-        Create a result for algorithms that are not yet implemented.
-
-        Args:
-            algorithm_name: Name of the algorithm
-            algorithm_info: Algorithm information from registry
-
-        Returns:
-            Not implemented result dictionary
-        """
         return {
-            'algorithm': algorithm_info.get('display_name', algorithm_name),
-            'status': 'not_implemented',
-            'best_solution': None,
-            'best_fitness': None,
-            'convergence_curve': None,
-            'params': None,
-            'iterations_completed': None,
-            'execution_time': None,
-            'error_message': (
+            "algorithm": algorithm_info.get("display_name", algorithm_name),
+            "status": "not_implemented",
+            "best_solution": None,
+            "best_fitness": None,
+            "convergence_curve": None,
+            "params": None,
+            "iterations_completed": None,
+            "execution_time": None,
+            "error_message": (
                 f"Algorithm '{algorithm_info.get('display_name', algorithm_name)}' "
-                f"is not yet implemented. Status: Coming Soon"
-            )
+                "is not yet implemented. Status: Coming Soon"
+            ),
         }
 
     def _create_error_result(
         self,
         algorithm_name: str,
         error_message: str,
-        status: str = "error"
+        status: str = "error",
     ) -> Dict[str, Any]:
-        """
-        Create an error result.
-
-        Args:
-            algorithm_name: Name of the algorithm
-            error_message: Error message
-            status: Status string
-
-        Returns:
-            Error result dictionary
-        """
         return {
-            'algorithm': algorithm_name,
-            'status': status,
-            'best_solution': None,
-            'best_fitness': None,
-            'convergence_curve': None,
-            'params': None,
-            'iterations_completed': None,
-            'execution_time': None,
-            'error_message': error_message
+            "algorithm": algorithm_name,
+            "status": status,
+            "best_solution": None,
+            "best_fitness": None,
+            "convergence_curve": None,
+            "params": None,
+            "iterations_completed": None,
+            "execution_time": None,
+            "error_message": error_message,
         }
 
+    # ------------------------------------------------------------------
+    # Algorithm info (unchanged)
+    # ------------------------------------------------------------------
+
     def get_algorithm_list(self) -> Dict[str, Any]:
-        """
-        Get information about all algorithms.
-
-        Returns:
-            Dictionary with algorithm list and statistics
-        """
         algorithms = []
-
         for name, info in self.registry.items():
             algo_dict = {
-                'name': name,
-                'display_name': info['display_name'],
-                'status': info['status'],
-                'description': info['description'],
-                'default_params': info['default_params']
+                "name": name,
+                "display_name": info["display_name"],
+                "status": info["status"],
+                "description": info["description"],
+                "default_params": info["default_params"],
             }
-
-            # Include parameter info if available
-            if 'parameter_info' in info:
-                algo_dict['parameter_info'] = info['parameter_info']
-
-            # Include use cases if available
-            if 'use_cases' in info:
-                algo_dict['use_cases'] = info['use_cases']
-
+            if "parameter_info" in info:
+                algo_dict["parameter_info"] = info["parameter_info"]
+            if "use_cases" in info:
+                algo_dict["use_cases"] = info["use_cases"]
             algorithms.append(algo_dict)
 
-        # Count statuses
-        available_count = sum(1 for a in algorithms if a['status'] == 'available')
-        coming_soon_count = sum(1 for a in algorithms if a['status'] == 'coming_soon')
+        available_count = sum(1 for a in algorithms if a["status"] == "available")
+        coming_soon_count = sum(1 for a in algorithms if a["status"] == "coming_soon")
 
         return {
-            'total': len(algorithms),
-            'available': available_count,
-            'coming_soon': coming_soon_count,
-            'algorithms': algorithms
+            "total": len(algorithms),
+            "available": available_count,
+            "coming_soon": coming_soon_count,
+            "algorithms": algorithms,
         }
 
     def get_algorithm_details(self, algorithm_name: str) -> Optional[Dict[str, Any]]:
-        """
-        Get detailed information about a specific algorithm.
-
-        Args:
-            algorithm_name: Name of the algorithm
-
-        Returns:
-            Algorithm details or None if not found
-        """
         if algorithm_name not in self.registry:
             return None
 
         info = self.registry[algorithm_name]
-
         details = {
-            'name': algorithm_name,
-            'display_name': info['display_name'],
-            'status': info['status'],
-            'description': info['description'],
-            'use_cases': info.get('use_cases', []),
-            'default_params': info['default_params'],
-            'parameter_info': info.get('parameter_info', {}),
-            'implementation_status': (
-                'Available for use' if info['status'] == 'available'
-                else 'In development - Coming Soon'
-            )
+            "name": algorithm_name,
+            "display_name": info["display_name"],
+            "status": info["status"],
+            "description": info["description"],
+            "use_cases": info.get("use_cases", []),
+            "default_params": info["default_params"],
+            "parameter_info": info.get("parameter_info", {}),
+            "implementation_status": (
+                "Available for use"
+                if info["status"] == "available"
+                else "In development - Coming Soon"
+            ),
         }
-
-        # Include characteristics if available
-        if 'characteristics' in info:
-            details['characteristics'] = info['characteristics']
-
+        if "characteristics" in info:
+            details["characteristics"] = info["characteristics"]
         return details

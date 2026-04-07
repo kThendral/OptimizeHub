@@ -1,299 +1,169 @@
 """
-Docker executor service for running user code in isolated containers.
+Modal-backed executor service for running custom fitness functions.
+
+Replaces the previous Docker subprocess approach with Modal cloud functions,
+preserving the same public API so that API routes do not need to change.
+
+Original Docker constraints are now enforced by Modal:
+  - No network access  (block_network=True)
+  - 512 MB memory      (memory=512)
+  - 30 s timeout       (timeout=30)
+  - Isolated container (Modal ephemeral VM)
 """
 
-import os
-import json
-import uuid
-import shutil
-import tempfile
-import subprocess
-from pathlib import Path
-from typing import Dict, Any, Optional
 import logging
+from typing import Dict, Any, Optional
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class DockerExecutor:
-    """Manages execution of user code in Docker containers"""
+    """
+    Executes custom fitness functions via Modal cloud functions.
+
+    Public API is identical to the original DockerExecutor so that
+    API routes (``app/api/routes.py``) require no changes.
+    """
 
     def __init__(
         self,
-        image_name: str = "optimizehub-sandbox:latest",
         timeout: int = 30,
         memory_limit: str = "512m",
-        cpu_limit: str = "2.0"
+        cpu_limit: str = "1.0",
+        # Legacy Docker parameters accepted but ignored
+        image_name: str = "optimizehub-sandbox:latest",
     ):
-        """
-        Initialize Docker executor.
-
-        Args:
-            image_name: Name of the Docker image to use
-            timeout: Execution timeout in seconds
-            memory_limit: Memory limit (e.g., "512m", "1g")
-            cpu_limit: CPU limit (e.g., "1.0", "2.0")
-        """
-        self.image_name = image_name
         self.timeout = timeout
         self.memory_limit = memory_limit
         self.cpu_limit = cpu_limit
-        self.temp_dir = Path(tempfile.gettempdir()) / "optimizehub_executions"
-        self.temp_dir.mkdir(exist_ok=True)
 
     def execute_custom_fitness(
         self,
         fitness_code: str,
-        config: Dict[str, Any]
+        config: Dict[str, Any],
     ) -> Dict[str, Any]:
         """
-        Execute custom fitness function in Docker container.
+        Execute a custom fitness function via Modal.
 
         Args:
-            fitness_code: Python code containing the fitness function
-            config: Configuration dictionary with algorithm and parameters
+            fitness_code:
+                Python source code containing ``def fitness(x): ...``.
+            config:
+                Configuration dict with keys:
+                  ``algorithm`` (str), ``parameters`` (dict), ``problem`` (dict).
 
         Returns:
-            Dictionary with execution results or error information
+            Result dict compatible with the original Docker runner output::
+
+                {
+                    "success":            bool,
+                    "best_solution":      list,
+                    "best_fitness":       float,
+                    "iterations":         int,
+                    "convergence_history": list,
+                    "execution_time":     float,
+                }
+            On failure::
+
+                {
+                    "success":    False,
+                    "error":      str,
+                    "error_type": str,   # "timeout" | "validation_error" | "execution_error"
+                }
         """
-        execution_id = str(uuid.uuid4())
-        exec_dir = self.temp_dir / execution_id
+        # Extract algorithm name, algo params, and problem geometry from config
+        algorithm_name: str = config.get("algorithm", "GA")
+        algo_parameters: dict = config.get("parameters", {})
+        problem_cfg: dict = config.get("problem", {})
+
+        # Bundle problem geometry inside params so the Modal function can use it
+        params: dict = {**algo_parameters, "problem": problem_cfg}
 
         try:
-            # Create execution directory
-            exec_dir.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Created execution directory: {exec_dir}")
+            from executor.modal_runner import run_with_custom_fitness
 
-            # Write fitness function to file
-            fitness_file = exec_dir / "fitness.py"
-            fitness_file.write_text(fitness_code)
-            logger.info(f"Wrote fitness function to {fitness_file}")
+            logger.info(
+                "Dispatching custom fitness run to Modal "
+                "(algorithm=%s, timeout=%ds)",
+                algorithm_name,
+                self.timeout,
+            )
 
-            # Write config to JSON file
-            config_file = exec_dir / "config.json"
-            config_file.write_text(json.dumps(config))
-            logger.info(f"Wrote config to {config_file}")
+            modal_result: dict = run_with_custom_fitness.remote(
+                algorithm_name, fitness_code, params
+            )
 
-            # Check if Docker image exists
-            self._ensure_image_exists()
+            logger.info("Modal execution completed successfully")
 
-            # Run Docker container
-            result = self._run_container(exec_dir, execution_id)
-
-            return result
-
-        except Exception as e:
-            logger.error(f"Execution failed: {str(e)}")
+            # Translate Modal result format → Docker-runner-compatible format
+            convergence_curve = modal_result.get("convergence_curve") or []
             return {
-                'success': False,
-                'error': str(e),
-                'error_type': 'execution_error'
+                "success": True,
+                "best_solution": modal_result.get("best_solution"),
+                "best_fitness": modal_result.get("best_fitness"),
+                "iterations": len(convergence_curve),
+                "convergence_history": convergence_curve,
+                "execution_time": modal_result.get("execution_time", 0.0),
             }
 
-        finally:
-            # Cleanup execution directory
-            try:
-                if exec_dir.exists():
-                    shutil.rmtree(exec_dir)
-                    logger.info(f"Cleaned up execution directory: {exec_dir}")
-            except Exception as e:
-                logger.warning(f"Failed to cleanup {exec_dir}: {str(e)}")
-
-    def _ensure_image_exists(self):
-        """Check if Docker image exists, build if not"""
-        try:
-            # Check if image exists
-            result = subprocess.run(
-                ["docker", "images", "-q", self.image_name],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-
-            if not result.stdout.strip():
-                logger.info(f"Docker image {self.image_name} not found, building...")
-                self._build_image()
-            else:
-                logger.info(f"Docker image {self.image_name} found")
-
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to check Docker image: {e.stderr}")
-        except FileNotFoundError:
-            raise RuntimeError(
-                "Docker is not installed or not in PATH. "
-                "Please install Docker to use custom fitness functions."
-            )
-
-    def _build_image(self):
-        """Build Docker image from Dockerfile"""
-        try:
-            # Get path to Dockerfile
-            backend_dir = Path(__file__).parent.parent.parent
-            dockerfile_path = backend_dir / "docker" / "Dockerfile.sandbox"
-
-            if not dockerfile_path.exists():
-                raise RuntimeError(f"Dockerfile not found at {dockerfile_path}")
-
-            logger.info(f"Building Docker image from {dockerfile_path}")
-
-            # Build image
-            result = subprocess.run(
-                [
-                    "docker", "build",
-                    "-t", self.image_name,
-                    "-f", str(dockerfile_path),
-                    str(backend_dir / "docker")
-                ],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-
-            logger.info(f"Docker image built successfully: {result.stdout}")
-
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to build Docker image: {e.stderr}")
-
-    def _run_container(self, exec_dir: Path, execution_id: str) -> Dict[str, Any]:
-        """
-        Run Docker container with user code.
-
-        Args:
-            exec_dir: Directory containing fitness.py and config.json
-            execution_id: Unique execution ID
-
-        Returns:
-            Dictionary with execution results
-        """
-        try:
-            # Build Docker command
-            docker_cmd = [
-                "docker", "run",
-                "--rm",  # Remove container after execution
-                "--network", "none",  # No network access
-                "--memory", self.memory_limit,  # Memory limit
-                "--cpus", self.cpu_limit,  # CPU limit
-                "--read-only",  # Read-only filesystem
-                "--tmpfs", "/tmp",  # Writable temp directory
-                "--user", "1000:1000",  # Non-root user
-                "-v", f"{exec_dir}:/workspace:ro",  # Mount execution dir as read-only
-                "-w", "/workspace",  # Set working directory
-                self.image_name,
-                "python", "/runner.py", "fitness.py", "config.json"
-            ]
-
-            logger.info(f"Running Docker command: {' '.join(docker_cmd)}")
-
-            # Run container with timeout
-            result = subprocess.run(
-                docker_cmd,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout
-            )
-
-            # Parse output
-            if result.returncode == 0:
-                try:
-                    output = json.loads(result.stdout)
-                    logger.info(f"Execution successful: {output.get('success', False)}")
-                    return output
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse output: {result.stdout}")
-                    return {
-                        'success': False,
-                        'error': f"Failed to parse execution output: {str(e)}",
-                        'error_type': 'parse_error',
-                        'raw_output': result.stdout
-                    }
-            else:
-                # Container exited with error
-                logger.error(f"Container failed with return code {result.returncode}")
-                logger.error(f"stdout: {result.stdout}")
-                logger.error(f"stderr: {result.stderr}")
-
-                # Try to parse error output
-                try:
-                    error_output = json.loads(result.stdout)
-                    return error_output
-                except json.JSONDecodeError:
-                    return {
-                        'success': False,
-                        'error': result.stderr or result.stdout or "Container execution failed",
-                        'error_type': 'container_error'
-                    }
-
-        except subprocess.TimeoutExpired:
-            logger.error(f"Execution timed out after {self.timeout} seconds")
+        except ValueError as exc:
+            # Validation errors from modal_runner (bad algo name, missing fitness fn)
+            logger.warning("Validation error in custom fitness execution: %s", exc)
             return {
-                'success': False,
-                'error': f"Execution exceeded {self.timeout} seconds timeout. "
-                        f"Try reducing iterations or problem complexity.",
-                'error_type': 'timeout'
-            }
-        except Exception as e:
-            logger.error(f"Container execution failed: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e),
-                'error_type': 'execution_error'
+                "success": False,
+                "error": str(exc),
+                "error_type": "validation_error",
             }
 
-    def cleanup_all(self):
-        """Cleanup all execution directories"""
-        try:
-            if self.temp_dir.exists():
-                shutil.rmtree(self.temp_dir)
-                self.temp_dir.mkdir(exist_ok=True)
-                logger.info("Cleaned up all execution directories")
-        except Exception as e:
-            logger.warning(f"Failed to cleanup all directories: {str(e)}")
+        except Exception as exc:
+            err_str = str(exc)
+            logger.error("Modal execution failed: %s", err_str)
+
+            # Classify Modal timeout errors using class name (avoids hard import dependency
+            # on modal internals while still catching all known timeout exception names).
+            exc_type_name = type(exc).__name__
+            is_timeout = exc_type_name in ("FunctionTimeoutError", "TimeoutError") or (
+                "timeout" in err_str.lower()
+            )
+            if is_timeout:
+                return {
+                    "success": False,
+                    "error": (
+                        f"Execution exceeded {self.timeout} seconds timeout. "
+                        "Try reducing iterations or problem complexity. "
+                        f"Details: {err_str}"
+                    ),
+                    "error_type": "timeout",
+                }
+
+            # Container / sandbox execution errors
+            if exc_type_name in ("ExecutionError", "UserCodeException", "SandboxTerminatedError"):
+                return {
+                    "success": False,
+                    "error": f"Sandbox execution error: {err_str}",
+                    "error_type": "container_error",
+                }
+
+            return {
+                "success": False,
+                "error": err_str,
+                "error_type": "execution_error",
+            }
+
+    def cleanup_all(self) -> None:
+        """No-op: Modal manages container lifecycle automatically."""
+        pass
 
 
-# Singleton instance
+# ---------------------------------------------------------------------------
+# Singleton helper — unchanged public API
+# ---------------------------------------------------------------------------
 _executor_instance: Optional[DockerExecutor] = None
 
 
 def get_docker_executor() -> DockerExecutor:
-    """Get or create singleton DockerExecutor instance"""
+    """Return (or create) the singleton DockerExecutor instance."""
     global _executor_instance
     if _executor_instance is None:
         _executor_instance = DockerExecutor()
     return _executor_instance
-
-
-# Example usage
-if __name__ == "__main__":
-    # Test the executor
-    executor = DockerExecutor()
-
-    # Test fitness function
-    test_code = """
-import numpy as np
-
-def fitness(x):
-    return np.sum(x**2)
-"""
-
-    # Test config
-    test_config = {
-        "algorithm": "PSO",
-        "parameters": {
-            "num_particles": 20,
-            "max_iterations": 50,
-            "w": 0.7,
-            "c1": 1.5,
-            "c2": 1.5
-        },
-        "problem": {
-            "dimensions": 5,
-            "lower_bound": -5.0,
-            "upper_bound": 5.0
-        }
-    }
-
-    print("Testing Docker executor...")
-    result = executor.execute_custom_fitness(test_code, test_config)
-    print(json.dumps(result, indent=2))

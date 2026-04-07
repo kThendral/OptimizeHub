@@ -83,8 +83,30 @@ async def run_optimization(request: OptimizationRequest) -> OptimizationResult:
     if all_warnings:
         result['warnings'] = all_warnings
 
-    # Handle not_implemented status with proper HTTP response
-    # (still returns 200 but with status field indicating not_implemented)
+    # Map execution error/timeout statuses to appropriate HTTP responses
+    result_status = result.get("status")
+    if result_status == "timeout":
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail={
+                "error": "Optimization timed out",
+                "message": result.get(
+                    "error_message",
+                    "Optimization exceeded the 30-second time limit. "
+                    "Try reducing 'max_iterations' or 'population_size'.",
+                ),
+            },
+        )
+    if result_status == "error":
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Optimization failed",
+                "message": result.get("error_message", "An unexpected error occurred."),
+            },
+        )
+
+    # not_implemented and success are returned as 200 with status field
     return OptimizationResult(**result)
 
 
@@ -97,7 +119,7 @@ async def run_optimization_custom(
     Run an optimization algorithm with a custom fitness function.
 
     This endpoint allows users to upload their own fitness function and execute
-    it in an isolated Docker container for security.
+    it in an isolated Modal cloud function for security.
 
     Args:
         fitness_file: Python file (.py) containing a 'fitness' function
@@ -188,7 +210,7 @@ async def run_optimization_custom(
             detail=f"Algorithm must be one of: {', '.join(allowed_algorithms)}"
         )
 
-    # Execute in Docker sandbox
+    # Execute in Modal sandbox
     try:
         docker_executor = get_docker_executor()
         result = docker_executor.execute_custom_fitness(fitness_code, config)
@@ -397,7 +419,7 @@ async def root() -> Dict[str, Any]:
         "health_check_url": "/api/health",
         "endpoints": {
             "POST /api/optimize": "Run optimization algorithm",
-            "POST /api/optimize/custom": "Run optimization with custom fitness function (Docker sandbox)",
+            "POST /api/optimize/custom": "Run optimization with custom fitness function (Modal sandbox)",
             "GET /api/algorithms": "List all algorithms",
             "GET /api/algorithms/{name}": "Get algorithm details",
             "POST /api/validate": "Validate problem definition",
