@@ -272,12 +272,18 @@ class HealthResponse(BaseModel):
         description="Maximum iterations allowed"
     )
 
+    celery_worker_thread: str = Field(
+        ...,
+        description="Status of the in-process Celery worker thread: 'running' or 'not running'"
+    )
+
     class Config:
         json_schema_extra = {
             "example": {
                 "status": "healthy",
                 "available_algorithms": 2,
                 "max_dimensions": 50,
-                "max_iterations": 100
+                "max_iterations": 100,
+                "celery_worker_thread": "running"
             }
         }

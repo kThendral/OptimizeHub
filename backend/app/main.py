@@ -1,19 +1,26 @@
 """
 FastAPI application entry point for OptimizeHub.
 """
+# Standard library — no app imports yet
+import logging
+import os
+import threading
+from contextlib import asynccontextmanager
+
+# Load .env FIRST so that REDIS_URL and other vars are in os.environ
+# before any app module (celery_app, config, etc.) is imported.
+# celery_app.py reads REDIS_URL at module level — if dotenv runs after
+# that import, Celery gets REDIS_URL=None and falls back to AMQP.
+from dotenv import load_dotenv
+load_dotenv()
+
+# App imports — safe to do after load_dotenv()
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from contextlib import asynccontextmanager
+
 from app.api.async_tasks import router as async_router
-import logging
-from dotenv import load_dotenv
-import os
-
-# Load environment variables from .env file
-load_dotenv()
-
 from app.api.routes import router
 from app.api.sse import router as sse_router
 from app.api.auth import router as auth_router
@@ -27,6 +34,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def run_celery_worker():
+    """Run Celery worker in a background thread alongside FastAPI."""
+    try:
+        from app.celery_app import celery
+        celery.worker_main([
+            "worker",
+            "--loglevel=info",
+            "--concurrency=2",       # 2 concurrent task slots
+            "--without-gossip",      # reduces Redis chatter
+            "--without-mingle",      # skips worker sync on startup
+            "--without-heartbeat",   # reduces Redis chatter further
+            "-Q", "celery"           # listen on default queue
+        ])
+    except Exception:
+        import traceback
+        print(f"[celery-thread-error] {traceback.format_exc()}", flush=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -34,6 +59,15 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("Starting OptimizeHub API...")
+
+    # Start Celery worker as daemon thread so it runs alongside FastAPI
+    worker_thread = threading.Thread(
+        target=run_celery_worker,
+        daemon=True,  # thread dies when main process exits
+        name="celery-worker"
+    )
+    worker_thread.start()
+    logger.info(f"[startup] Celery worker thread started: {worker_thread.name}")
 
     # Check available algorithms
     available = get_available_algorithms()
@@ -49,7 +83,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
+    # Shutdown — daemon=True means the thread stops with the main process
+    logger.info("[shutdown] Celery worker thread will stop with main process")
     logger.info("Shutting down OptimizeHub API...")
 
 

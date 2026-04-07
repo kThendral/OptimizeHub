@@ -3,6 +3,7 @@ FastAPI routes for OptimizeHub API.
 """
 from fastapi import APIRouter, HTTPException, status, UploadFile, File
 from typing import Dict, Any
+import threading
 import yaml
 from app.models.problem import OptimizationRequest, ProblemInput
 from app.models.result import (
@@ -389,18 +390,26 @@ async def health_check() -> HealthResponse:
     """
     Health check endpoint.
 
-    Returns service status and configuration information.
+    Returns service status and configuration information, including
+    whether the in-process Celery worker thread is alive.
 
     Returns:
-        Health status with available algorithm count and platform limits
+        Health status with available algorithm count, platform limits,
+        and Celery worker thread status.
     """
     available_algorithms = get_available_algorithms()
+
+    celery_thread_alive = any(
+        t.name == "celery-worker"
+        for t in threading.enumerate()
+    )
 
     return HealthResponse(
         status="healthy",
         available_algorithms=len(available_algorithms),
         max_dimensions=MAX_DIMENSIONS,
-        max_iterations=MAX_ITERATIONS
+        max_iterations=MAX_ITERATIONS,
+        celery_worker_thread="running" if celery_thread_alive else "not running",
     )
 
 
