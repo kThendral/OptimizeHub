@@ -385,7 +385,7 @@ async def validate_params_endpoint(
     }
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     """
     Health check endpoint.
