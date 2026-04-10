@@ -2,37 +2,42 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export async function fetchAlgorithms() {
-  try {
-    console.log('Fetching algorithms from:', `${API_BASE}/api/algorithms`);
-    
-    // Add timeout to prevent hanging
+  const MAX_ATTEMPTS = 3;
+  const TIMEOUT_MS = 60000; // 60s — enough for Render cold start
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-    
-    const res = await fetch(`${API_BASE}/api/algorithms`, {
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    console.log('Response status:', res.status, res.statusText);
-    
-    if (!res.ok) {
-      throw new Error(`Failed to fetch algorithms: ${res.status}`);
-    }
-    const data = await res.json();
-    console.log('Algorithms data:', data);
-    // Return full algorithm objects with status information
-    return data.algorithms;
-  } catch (error) {
-    // Don't log connection errors as errors - backend might not be running yet
-    if (error.name === 'AbortError' || error.message.includes('Failed to fetch') || error.message.includes('timeout')) {
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      console.log(`Fetching algorithms (attempt ${attempt}/${MAX_ATTEMPTS}):`, `${API_BASE}/api/algorithms`);
+      const res = await fetch(`${API_BASE}/api/algorithms`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      console.log('Response status:', res.status, res.statusText);
+
+      if (!res.ok) throw new Error(`Failed to fetch algorithms: ${res.status}`);
+
+      const data = await res.json();
+      console.log('Algorithms data:', data);
+      return data.algorithms;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      const isRetryable =
+        error.name === 'AbortError' ||
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('timeout');
+
+      if (isRetryable && attempt < MAX_ATTEMPTS) {
+        console.warn(`Backend not responding, retrying in 5s... (${attempt}/${MAX_ATTEMPTS})`);
+        await new Promise(r => setTimeout(r, 5000));
+        continue;
+      }
+
       console.warn('Backend not available. Algorithms will load when backend is running.');
-      // Return empty array so UI doesn't break
       return [];
     }
-    console.error('Fetch algorithms error:', error);
-    throw error;
   }
+  return [];
 }
 
 export async function fetchAlgorithmDetails(name) {
