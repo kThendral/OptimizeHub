@@ -3,6 +3,7 @@ FastAPI routes for OptimizeHub API.
 """
 from fastapi import APIRouter, HTTPException, status, UploadFile, File
 from typing import Dict, Any
+import asyncio
 import threading
 import yaml
 from app.models.problem import OptimizationRequest, ProblemInput
@@ -73,11 +74,13 @@ async def run_optimization(request: OptimizationRequest) -> OptimizationResult:
     # Combine all warnings (from problem and parameter validation)
     all_warnings = (warnings if warnings else []) + (param_warnings if param_warnings else [])
 
-    # Execute algorithm
-    result = executor.run_algorithm(
+    # Execute algorithm in a thread so the blocking Modal call
+    # doesn't deadlock the async event loop
+    result = await asyncio.to_thread(
+        executor.run_algorithm,
         algorithm_name=request.algorithm,
         problem=problem_dict,
-        params=request.params
+        params=request.params,
     )
 
     # Add warnings to result so users see educational messages
