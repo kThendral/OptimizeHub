@@ -61,7 +61,7 @@ def run_algorithm(
         # asyncio.run() is safe here because Celery workers do not run an
         # event loop by default.
         import modal
-        _modal_run = modal.Function.lookup("optimizehub-executor", "run_algorithm")
+        _modal_run = modal.Function.from_name("optimizehub-executor", "run_algorithm")
 
         result: dict = asyncio.run(
             _modal_run.remote.aio(algo_key, problem_payload, params)

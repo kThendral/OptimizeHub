@@ -164,7 +164,7 @@ class AlgorithmExecutor:
         # Look up the deployed Modal function by app/function name
         # (avoids importing modal_runner locally, which creates a disconnected app object)
         import modal
-        _modal_run = modal.Function.lookup("optimizehub-executor", "run_algorithm")
+        _modal_run = modal.Function.from_name("optimizehub-executor", "run_algorithm")
 
         raw_result: dict = _modal_run.remote(algorithm_name, problem, merged_params)
 
