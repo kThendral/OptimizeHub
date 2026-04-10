@@ -15,7 +15,7 @@ from app.models.result import (
     HealthResponse
 )
 from app.services.executor import AlgorithmExecutor
-from app.services.docker_executor import get_docker_executor
+from app.services.custom_executor import get_docker_executor
 from app.validators.code_validator import validate_fitness_code
 from app.core.validation import validate_problem, validate_algorithm_params
 from app.config import MAX_DIMENSIONS, MAX_ITERATIONS, get_available_algorithms

@@ -80,7 +80,8 @@ class DockerExecutor:
         params: dict = {**algo_parameters, "problem": problem_cfg}
 
         try:
-            from executor.modal_runner import run_with_custom_fitness
+            import modal
+            run_with_custom_fitness = modal.Function.lookup("optimizehub-executor", "run_with_custom_fitness")
 
             logger.info(
                 "Dispatching custom fitness run to Modal "

@@ -161,8 +161,10 @@ class AlgorithmExecutor:
         algo_info = get_algorithm_info(algorithm_name)
         merged_params = {**algo_info["default_params"], **params}
 
-        # Import inside method to avoid module-level Modal client initialisation
-        from executor.modal_runner import run_algorithm as _modal_run
+        # Look up the deployed Modal function by app/function name
+        # (avoids importing modal_runner locally, which creates a disconnected app object)
+        import modal
+        _modal_run = modal.Function.lookup("optimizehub-executor", "run_algorithm")
 
         raw_result: dict = _modal_run.remote(algorithm_name, problem, merged_params)
 
