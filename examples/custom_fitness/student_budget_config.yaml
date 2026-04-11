@@ -1,12 +1,12 @@
 algorithm: GA
 parameters:
-  population_size: 40
+  population_size: 50
   max_iterations: 50
   crossover_rate: 0.8
   mutation_rate: 0.1
   tournament_size: 3
 problem:
-  dimensions: 8
-  lower_bound: -10.0
-  upper_bound: 10.0
+  dimensions: 5
+  lower_bound: 0.0
+  upper_bound: 800.0
   objective: minimize

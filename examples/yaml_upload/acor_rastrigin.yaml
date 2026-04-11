@@ -1,0 +1,13 @@
+algorithm: ant_colony
+problem:
+  dimensions: 4
+  fitness_function: rastrigin
+  lower_bound: -5
+  upper_bound: 5
+  objective: minimize
+params:
+  colony_size: 30
+  max_iterations: 50
+  archive_size: 10
+  q: 0.01
+  xi: 0.85

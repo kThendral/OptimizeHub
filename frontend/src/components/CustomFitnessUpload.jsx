@@ -3,6 +3,8 @@ import axios from 'axios';
 import Chart from 'chart.js/auto';
 import './CustomFitnessUpload.css';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const CustomFitnessUpload = () => {
   const [fitnessFile, setFitnessFile] = useState(null);
   const [configFile, setConfigFile] = useState(null);
@@ -78,7 +80,7 @@ const CustomFitnessUpload = () => {
 
       // Send request to backend
       const response = await axios.post(
-        'http://localhost:8000/api/optimize/custom',
+        `${API_BASE}/api/optimize/custom`,
         formData,
         {
           headers: {
