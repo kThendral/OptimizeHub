@@ -1,9 +1,21 @@
 from celery import Celery
 import os
 import ssl as _ssl
+import logging
+
+logger = logging.getLogger(__name__)
 
 # REDIS_URL must be set in the environment (Upstash: rediss://default:PASSWORD@HOST.upstash.io:6379)
+# If not set, Celery falls back to amqp://guest@localhost and connection will fail!
 REDIS_URL = os.environ.get("REDIS_URL")
+
+if not REDIS_URL:
+    logger.warning(
+        "⚠️ REDIS_URL not found in environment! Celery will default to amqp://guest@localhost. "
+        "Make sure .env is loaded with python-dotenv before importing this module."
+    )
+else:
+    logger.info(f"✓ Celery broker URL configured: {REDIS_URL.split('@')[0]}@...{REDIS_URL[-20:]}")
 
 celery = Celery(
     "optimizehub",

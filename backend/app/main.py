@@ -15,6 +15,16 @@ from app.api.persistence_routes import router as persistence_router
 from dotenv import load_dotenv
 load_dotenv()
 
+# Validate critical environment variables
+REDIS_URL = os.environ.get("REDIS_URL")
+if not REDIS_URL:
+    print(
+        "⚠️  CRITICAL: REDIS_URL not set in environment!\n"
+        "   Celery will fall back to amqp://guest@localhost and connection will fail.\n"
+        "   Ensure backend/.env contains: REDIS_URL=rediss://default:PASSWORD@HOST.upstash.io:6379\n",
+        flush=True
+    )
+
 # App imports — safe to do after load_dotenv()
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
