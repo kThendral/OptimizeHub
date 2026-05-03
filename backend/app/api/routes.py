@@ -1,11 +1,14 @@
 """
 FastAPI routes for OptimizeHub API.
+Includes user persistence for saving optimization runs and configurations.
 """
-from fastapi import APIRouter, HTTPException, status, UploadFile, File
-from typing import Dict, Any
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Depends
+from fastapi.security import HTTPBearer, HTTPAuthCredential
+from typing import Dict, Any, Optional
 import asyncio
 import threading
 import yaml
+import logging
 from app.models.problem import OptimizationRequest, ProblemInput
 from app.models.result import (
     OptimizationResult,
@@ -20,26 +23,93 @@ from app.validators.code_validator import validate_fitness_code
 from app.core.validation import validate_problem, validate_algorithm_params
 from app.config import MAX_DIMENSIONS, MAX_ITERATIONS, get_available_algorithms
 
+# Import persistence and auth utilities
+try:
+    from app.services.persistence_service import PersistenceService
+    from app.models.persistence import OptimizationRunCreate
+    PERSISTENCE_AVAILABLE = True
+except ImportError:
+    PERSISTENCE_AVAILABLE = False
+    logging.warning("Persistence service not available. Install persistence dependencies to enable.")
+
+try:
+    from app.supabase_client import get_supabase_public
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    logging.warning("Supabase client not available. Authentication will be disabled.")
+
 # Initialize router
 router = APIRouter()
 
 # Initialize executor
 executor = AlgorithmExecutor()
 
+# Initialize persistence service (if available)
+persistence_service = None
+if PERSISTENCE_AVAILABLE:
+    persistence_service = PersistenceService()
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Security scheme for optional authentication
+security = HTTPBearer(auto_error=False)
+
+
+# ==============================================================================
+# HELPER: Extract and verify user from JWT token
+# ==============================================================================
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthCredential] = Depends(security)
+) -> Optional[str]:
+    """
+    Optional authentication dependency.
+    Returns user_id if valid token provided, None otherwise.
+    
+    This allows endpoints to work for both authenticated and anonymous users.
+    """
+    if not credentials or not SUPABASE_AVAILABLE:
+        return None
+    
+    try:
+        token = credentials.credentials
+        supabase = get_supabase_public()
+        user = supabase.auth.get_user(token)
+        
+        if user and user.user.id:
+            return user.user.id
+        return None
+    except Exception as e:
+        logger.warning(f"Token verification failed: {str(e)}")
+        return None
+
+
+# ==============================================================================
+# OPTIMIZATION ENDPOINTS
+# ==============================================================================
 
 @router.post("/optimize", response_model=OptimizationResult, status_code=status.HTTP_200_OK)
-async def run_optimization(request: OptimizationRequest) -> OptimizationResult:
+async def run_optimization(
+    request: OptimizationRequest,
+    user_id: Optional[str] = Depends(get_current_user_optional)
+) -> OptimizationResult:
     """
     Run an optimization algorithm on a given problem.
+    
+    **Optional Authentication**: If authenticated, optimization results will be saved to user history.
 
-    This endpoint executes the requested algorithm synchronously and returns results.
+    This endpoint executes the requested algorithm and returns results.
     If the algorithm is not yet implemented, returns a proper error response.
 
     Args:
         request: Optimization request with algorithm, problem, and parameters
+        user_id: Optional current authenticated user (from JWT token)
 
     Returns:
         Optimization results with status, solution, and convergence data
+        If authenticated, includes run_id for future reference.
 
     Raises:
         HTTPException: If validation fails
@@ -59,7 +129,10 @@ async def run_optimization(request: OptimizationRequest) -> OptimizationResult:
         )
 
     # Validate algorithm parameters
-    is_valid, param_errors, param_warnings = validate_algorithm_params(request.algorithm, request.params)
+    is_valid, param_errors, param_warnings = validate_algorithm_params(
+        request.algorithm, 
+        request.params
+    )
 
     if not is_valid:
         raise HTTPException(
@@ -110,17 +183,55 @@ async def run_optimization(request: OptimizationRequest) -> OptimizationResult:
             },
         )
 
-    # not_implemented and success are returned as 200 with status field
+    # ========================================================================
+    # PERSIST OPTIMIZATION RUN IF USER IS AUTHENTICATED
+    # ========================================================================
+    
+    if user_id and result.get("status") == "success" and PERSISTENCE_AVAILABLE and persistence_service:
+        try:
+            run_to_save = OptimizationRunCreate(
+                algorithm=request.algorithm,
+                problem_name=request.problem.fitness_function_name,
+                best_fitness=result.get("best_fitness", 0),
+                best_solution=result.get("best_solution", []),
+                convergence_curve=result.get("convergence_curve", []),
+                iterations_completed=result.get("iterations_run", 0),
+                execution_time=result.get("execution_time", 0),
+                problem_definition=problem_dict,
+                algorithm_parameters=request.params,
+                fitness_function_name=request.problem.fitness_function_name
+            )
+            
+            # Save the run to database
+            saved_run = persistence_service.save_optimization_run(user_id, run_to_save)
+            
+            # Update user statistics
+            persistence_service.update_user_stats(user_id, request.algorithm)
+            
+            # Add run ID to response for frontend reference
+            result["run_id"] = str(saved_run.id)
+            
+            logger.info(f"Saved optimization run {saved_run.id} for user {user_id}")
+            
+        except Exception as e:
+            # Log but don't fail the optimization if saving fails
+            logger.warning(f"Failed to save optimization run for user {user_id}: {str(e)}")
+            # Don't include run_id in response if persistence failed
+
+    # Return successful result
     return OptimizationResult(**result)
 
 
 @router.post("/optimize/custom", response_model=OptimizationResult, status_code=status.HTTP_200_OK)
 async def run_optimization_custom(
     fitness_file: UploadFile = File(..., description="Python file containing fitness function"),
-    config_file: UploadFile = File(..., description="YAML configuration file")
+    config_file: UploadFile = File(..., description="YAML configuration file"),
+    user_id: Optional[str] = Depends(get_current_user_optional)
 ) -> OptimizationResult:
     """
     Run an optimization algorithm with a custom fitness function.
+    
+    **Optional Authentication**: If authenticated, results will be saved to user history.
 
     This endpoint allows users to upload their own fitness function and execute
     it in an isolated Modal cloud function for security.
@@ -128,9 +239,11 @@ async def run_optimization_custom(
     Args:
         fitness_file: Python file (.py) containing a 'fitness' function
         config_file: YAML file with algorithm configuration
+        user_id: Optional current authenticated user (from JWT token)
 
     Returns:
-        Optimization results with status, solution, and convergence data
+        Optimization results with status, solution, and convergence data.
+        If authenticated, includes run_id for future reference.
 
     Raises:
         HTTPException: If validation fails or execution encounters an error
@@ -243,8 +356,8 @@ async def run_optimization_custom(
                 }
             )
 
-        # Return successful result
-        return OptimizationResult(
+        # Build response
+        optimization_result = OptimizationResult(
             status="success",
             algorithm=config['algorithm'],
             best_solution=result['best_solution'],
@@ -254,11 +367,49 @@ async def run_optimization_custom(
             execution_time=result.get('execution_time', 0)
         )
 
+        # ====================================================================
+        # PERSIST CUSTOM FITNESS RUN IF USER IS AUTHENTICATED
+        # ====================================================================
+        
+        if user_id and PERSISTENCE_AVAILABLE and persistence_service:
+            try:
+                run_to_save = OptimizationRunCreate(
+                    algorithm=config['algorithm'],
+                    problem_name="Custom Fitness Function",
+                    best_fitness=result.get('best_fitness', 0),
+                    best_solution=result.get('best_solution', []),
+                    convergence_curve=result.get('convergence_history', []),
+                    iterations_completed=result.get('iterations', 0),
+                    execution_time=result.get('execution_time', 0),
+                    problem_definition=config.get('problem', {}),
+                    algorithm_parameters=config.get('parameters', {}),
+                    fitness_function_name="Custom"
+                )
+                
+                saved_run = persistence_service.save_optimization_run(user_id, run_to_save)
+                persistence_service.update_user_stats(user_id, config['algorithm'])
+                
+                # Convert response to dict to add run_id
+                result_dict = optimization_result.model_dump()
+                result_dict["run_id"] = str(saved_run.id)
+                
+                logger.info(f"Saved custom fitness run {saved_run.id} for user {user_id}")
+                
+                return OptimizationResult(**result_dict)
+                
+            except Exception as e:
+                logger.warning(f"Failed to save custom fitness run for user {user_id}: {str(e)}")
+                # Return result without run_id if persistence failed
+                return optimization_result
+
+        return optimization_result
+
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
         # Catch any unexpected errors
+        logger.error(f"Unexpected error in custom fitness execution: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -267,6 +418,10 @@ async def run_optimization_custom(
             }
         )
 
+
+# ==============================================================================
+# ALGORITHM ENDPOINTS (unchanged)
+# ==============================================================================
 
 @router.get("/algorithms", response_model=AlgorithmListResponse)
 async def list_algorithms() -> AlgorithmListResponse:
@@ -314,6 +469,10 @@ async def get_algorithm_info(algorithm_name: str) -> AlgorithmInfo:
 
     return AlgorithmInfo(**algorithm_details)
 
+
+# ==============================================================================
+# VALIDATION ENDPOINTS (unchanged)
+# ==============================================================================
 
 @router.post("/validate", response_model=ValidationResult)
 async def validate_problem_endpoint(problem: ProblemInput) -> ValidationResult:
@@ -388,6 +547,10 @@ async def validate_params_endpoint(
     }
 
 
+# ==============================================================================
+# HEALTH CHECK ENDPOINT (unchanged)
+# ==============================================================================
+
 @router.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     """
@@ -415,6 +578,10 @@ async def health_check() -> HealthResponse:
         celery_worker_thread="running" if celery_thread_alive else "not running",
     )
 
+
+# ==============================================================================
+# ROOT ENDPOINT (unchanged)
+# ==============================================================================
 
 @router.get("/")
 async def root() -> Dict[str, Any]:

@@ -1,13 +1,14 @@
 """
 Authentication endpoints for OptimizeHub.
 """
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, EmailStr
-from ..supabase_client import get_supabase_public, get_supabase_admin
 from typing import Optional
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from ..supabase_client import get_supabase_public, get_supabase_admin
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
+security = HTTPBearer()
 
 class SignupRequest(BaseModel):
     username: str
@@ -164,3 +165,35 @@ async def login(request: LoginRequest):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Login failed: {error_message}"
             )
+
+async def get_current_user(credentials:HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """
+    Dependency to verify JWT token and extract user ID.
+    
+    Use on endpoints that require authentication.
+    
+    Example:
+        @app.get("/user/profile")
+        async def get_profile(user_id: str = Depends(get_current_user)):
+            # user_id is now available and verified
+    """
+    token = credentials.credentials
+    
+    try:
+        supabase = get_supabase_public()
+        # Verify the JWT token with Supabase
+        user = supabase.auth.get_user(token)
+        
+        if not user or not user.user.id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token"
+            )
+        
+        return user.user.id
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Authentication failed: {str(e)}"
+        )
