@@ -3,7 +3,7 @@ FastAPI routes for OptimizeHub API.
 Includes user persistence for saving optimization runs and configurations.
 """
 from fastapi import APIRouter, HTTPException, status, UploadFile, File, Depends
-from fastapi.security import HTTPBearer, HTTPAuthCredential
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Any, Optional
 import asyncio
 import threading
@@ -62,7 +62,7 @@ security = HTTPBearer(auto_error=False)
 # ==============================================================================
 
 async def get_current_user_optional(
-    credentials: Optional[HTTPAuthCredential] = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> Optional[str]:
     """
     Optional authentication dependency.

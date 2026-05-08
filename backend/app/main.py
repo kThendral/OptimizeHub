@@ -6,7 +6,6 @@ import logging
 import os
 import threading
 from contextlib import asynccontextmanager
-from app.api.persistence_routes import router as persistence_router
 
 # Load .env FIRST so that REDIS_URL and other vars are in os.environ
 # before any app module (celery_app, config, etc.) is imported.
@@ -35,6 +34,7 @@ from app.api.async_tasks import router as async_router
 from app.api.routes import router
 from app.api.sse import router as sse_router
 from app.api.auth import router as auth_router
+from app.api.persistence_routes import router as persistence_router
 from app.config import get_available_algorithms, ALGORITHM_REGISTRY
 
 # Configure logging

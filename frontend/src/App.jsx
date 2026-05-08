@@ -3,6 +3,7 @@ import LandingPage from "./components/LandingPage";
 import AlgorithmSelector from "./components/AlgorithmSelector";
 import LearnPage from "./pages/LearnPage";
 import AuthModal from "./components/AuthModal";
+import ProblemHistory from "./components/ProblemHistory";
 
 function App() {
   const [currentPage, setCurrentPage] = useState(() => {
@@ -113,6 +114,9 @@ function App() {
           <div className="card p-6 rounded-lg shadow-md">
             <AlgorithmSelector onHome={navigateToLanding} />
           </div>
+
+          {/* Problem history for logged-in users */}
+          <ProblemHistory user={user} />
         </div>
       </div>
 
