@@ -1,7 +1,8 @@
 //Frontend API client for persistence features
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Same base as index.js — VITE_API_URL is the backend root, no /api suffix
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Token is stored in localStorage by AuthModal after login/signup
 const getAuthToken = () => localStorage.getItem('token');
@@ -10,7 +11,7 @@ const getAuthToken = () => localStorage.getItem('token');
 const createAuthClient = () => {
   const token = getAuthToken();
   return axios.create({
-    baseURL: API_URL,
+    baseURL: `${API_BASE}/api`,
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -31,7 +32,7 @@ export const persistenceAPI = {
   },
 
   async getPublicRuns(algorithm = null) {
-    return axios.get(`${API_URL}/persistence/runs/public`, {
+    return axios.get(`${API_BASE}/api/persistence/runs/public`, {
       params: { algorithm, limit: 50 }
     });
   },
@@ -53,7 +54,7 @@ export const persistenceAPI = {
   },
 
   async getPublicConfigurations(algorithm = null, tags = null) {
-    return axios.get(`${API_URL}/persistence/configs/public`, {
+    return axios.get(`${API_BASE}/api/persistence/configs/public`, {
       params: { algorithm, tags: tags?.join(','), limit: 50 }
     });
   },
