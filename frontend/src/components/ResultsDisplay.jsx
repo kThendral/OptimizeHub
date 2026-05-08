@@ -16,6 +16,7 @@ export default function ResultsDisplay({ result }) {
   const finalFitness = result.best_fitness;
   const objective = result.problem?.objective || 'minimize';
   const isMaximize = objective === 'maximize';
+  const isKnapsack = result.problem_type === 'knapsack';
 
   // For minimize: improvement = initial - final (positive when final < initial)
   // For maximize: improvement = final - initial (positive when final > initial)
@@ -543,7 +544,7 @@ export default function ResultsDisplay({ result }) {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Overall Improvement:</span>
-                  <span className="font-bold text-green-600 text-lg">
+                  <span className={`font-bold text-lg ${parseFloat(improvementPercent) < 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {improvementPercent ? `${improvementPercent}%` : 'N/A'}
                   </span>
                 </div>
@@ -556,11 +557,12 @@ export default function ResultsDisplay({ result }) {
                     parseFloat(improvementPercent) > 50 ? 'text-yellow-600' :
                     'text-orange-600'
                   }`}>
-                    {parseFloat(improvementPercent) < 0 ? '❌ Failed (negative improvement)' :
-                     parseFloat(improvementPercent) > 99 ? '✅ Excellent (>99%)' :
-                     parseFloat(improvementPercent) > 90 ? '✓ Very Good (>90%)' :
-                     parseFloat(improvementPercent) > 50 ? '⚠ Moderate (>50%)' :
-                     '⚠ Low (<50%)'}
+                    {parseFloat(improvementPercent) < 0
+                      ? `❌ Failed (${isMaximize ? 'fitness decreased' : 'fitness increased'})`
+                      : parseFloat(improvementPercent) > 99 ? '✅ Excellent (>99%)'
+                      : parseFloat(improvementPercent) > 90 ? '✓ Very Good (>90%)'
+                      : parseFloat(improvementPercent) > 50 ? '⚠ Moderate (>50%)'
+                      : '⚠ Low (<50%)'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -572,9 +574,15 @@ export default function ResultsDisplay({ result }) {
                 {result.convergence_curve && result.convergence_curve.length > 10 && (
                   <div className="mt-3 pt-3 border-t border-blue-200">
                     <p className="text-xs text-gray-600 leading-relaxed">
-                      <strong>How to interpret:</strong> The algorithm {isMaximize ? 'increased' : 'reduced'} the fitness from{' '}
-                      <span className="font-mono bg-white px-1 rounded">{formatNumber(initialFitness)}</span> to{' '}
-                      <span className="font-mono bg-white px-1 rounded">{formatNumber(finalFitness)}</span>.
+                      <strong>How to interpret:</strong>{' '}
+                      {isKnapsack
+                        ? <>The algorithm increased the selected value from{' '}
+                            <span className="font-mono bg-white px-1 rounded">{formatNumber(initialFitness !== null ? Math.abs(initialFitness) : null)}</span> to{' '}
+                            <span className="font-mono bg-white px-1 rounded">{formatNumber(finalFitness !== null ? Math.abs(finalFitness) : null)}</span>.</>
+                        : <>The algorithm {isMaximize ? 'increased' : 'reduced'} the fitness from{' '}
+                            <span className="font-mono bg-white px-1 rounded">{formatNumber(initialFitness)}</span> to{' '}
+                            <span className="font-mono bg-white px-1 rounded">{formatNumber(finalFitness)}</span>.</>
+                      }
                       {parseFloat(improvementPercent) > 99 ? (
                         <span className="text-green-700"> Near-perfect convergence indicates the solution is very close to the global optimum.</span>
                       ) : parseFloat(improvementPercent) > 90 ? (
@@ -592,8 +600,12 @@ export default function ResultsDisplay({ result }) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Initial Fitness */}
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <p className="text-xs text-gray-600 uppercase font-semibold mb-1">Initial Fitness</p>
-                <p className="text-xl font-bold text-gray-800 mb-2">{formatNumber(initialFitness)}</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold mb-1">
+                  {isKnapsack ? 'Initial Value' : 'Initial Fitness'}
+                </p>
+                <p className="text-xl font-bold text-gray-800 mb-2">
+                  {formatNumber(isKnapsack && initialFitness !== null ? Math.abs(initialFitness) : initialFitness)}
+                </p>
                 {(() => {
                   const interpretation = getMetricInterpretation('initial', initialFitness, {
                     objective: result.problem?.objective || 'minimize',
@@ -612,8 +624,12 @@ export default function ResultsDisplay({ result }) {
 
               {/* Final Fitness */}
               <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <p className="text-xs text-gray-600 uppercase font-semibold mb-1">Final Fitness</p>
-                <p className="text-xl font-bold text-green-600 mb-2">{formatNumber(finalFitness)}</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold mb-1">
+                  {isKnapsack ? 'Best Value Found' : 'Final Fitness'}
+                </p>
+                <p className="text-xl font-bold text-green-600 mb-2">
+                  {formatNumber(isKnapsack && finalFitness !== null ? Math.abs(finalFitness) : finalFitness)}
+                </p>
                 {(() => {
                   const interpretation = getMetricInterpretation('final', finalFitness, {
                     objective: result.problem?.objective || 'minimize',
@@ -633,7 +649,7 @@ export default function ResultsDisplay({ result }) {
               {/* Total Improvement/Reduction */}
               <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                 <p className="text-xs text-gray-600 uppercase font-semibold mb-1">
-                  {isMaximize ? 'Total Increase' : 'Total Reduction'}
+                  {isKnapsack ? 'Total Value Gain' : isMaximize ? 'Total Increase' : 'Total Reduction'}
                 </p>
                 <p className="text-xl font-bold text-purple-600 mb-2">
                   {improvement !== null ? formatNumber(Math.abs(improvement)) : 'N/A'}

@@ -78,6 +78,11 @@ class OptimizationResult(BaseModel):
         description="Decoded TSP solution with route and distances"
     )
 
+    problem: Optional[dict] = Field(
+        None,
+        description="Problem definition including objective (minimize/maximize)"
+    )
+
     class Config:
         json_schema_extra = {
             "example": {

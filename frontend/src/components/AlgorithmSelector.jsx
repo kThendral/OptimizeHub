@@ -120,30 +120,36 @@ export default function AlgorithmSelector({ onHome }) {
 
   // Initialize real-world problem data when fitness function changes
   useEffect(() => {
-    if (problemData.fitnessFunction === 'tsp' && !problemData.cities) {
-      // Initialize with default cities
+    if (problemData.fitnessFunction === 'tsp') {
+      // TSP always minimizes distance — lock objective and init cities if needed
       setProblemData(prev => ({
         ...prev,
-        cities: [
-          { name: 'City A', x: 0, y: 0 },
-          { name: 'City B', x: 3, y: 4 },
-          { name: 'City C', x: 7, y: 1 },
-          { name: 'City D', x: 5, y: 6 }
-        ],
-        dimensions: 4
+        objective: 'minimize',
+        ...(!prev.cities ? {
+          cities: [
+            { name: 'City A', x: 0, y: 0 },
+            { name: 'City B', x: 3, y: 4 },
+            { name: 'City C', x: 7, y: 1 },
+            { name: 'City D', x: 5, y: 6 }
+          ],
+          dimensions: 4
+        } : {})
       }));
-    } else if (problemData.fitnessFunction === 'knapsack' && !problemData.items) {
-      // Initialize with default items
+    } else if (problemData.fitnessFunction === 'knapsack') {
+      // Knapsack fitness returns -value (minimize -value = maximize value) — lock objective
       setProblemData(prev => ({
         ...prev,
-        items: [
-          { name: 'Laptop', weight: 3, value: 500 },
-          { name: 'Camera', weight: 2, value: 300 },
-          { name: 'Book', weight: 1, value: 50 },
-          { name: 'Phone', weight: 1, value: 200 }
-        ],
-        capacity: 5,
-        dimensions: 4
+        objective: 'minimize',
+        ...(!prev.items ? {
+          items: [
+            { name: 'Laptop', weight: 3, value: 500 },
+            { name: 'Camera', weight: 2, value: 300 },
+            { name: 'Book', weight: 1, value: 50 },
+            { name: 'Phone', weight: 1, value: 200 }
+          ],
+          capacity: 5,
+          dimensions: 4
+        } : {})
       }));
     }
   }, [problemData.fitnessFunction]);

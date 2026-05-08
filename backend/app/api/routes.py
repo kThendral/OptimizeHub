@@ -156,6 +156,9 @@ async def run_optimization(
         params=request.params,
     )
 
+    # Attach problem definition (including objective) so frontend displays correct metrics
+    result['problem'] = problem_dict
+
     # Add warnings to result so users see educational messages
     if all_warnings:
         result['warnings'] = all_warnings
