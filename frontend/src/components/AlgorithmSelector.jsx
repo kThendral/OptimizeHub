@@ -365,6 +365,9 @@ export default function AlgorithmSelector({ onHome }) {
         ? selectedAlgorithmsForAsync
         : [selectedAlgorithm];
 
+      // Clear any previous sync result before switching to async view
+      setResult(null);
+
       // Store job data and switch to async view
       setAsyncJobData({
         problem,
@@ -470,6 +473,7 @@ export default function AlgorithmSelector({ onHome }) {
         onBack={() => {
           setShowAsyncView(false);
           setAsyncJobData(null);
+          setResult(null);
         }}
       />
     );
@@ -538,7 +542,7 @@ export default function AlgorithmSelector({ onHome }) {
       {/* Input Mode Tabs */}
       <div className="mb-6 flex border-b border-gray-200">
         <button
-          onClick={() => setInputMode('form')}
+          onClick={() => { setInputMode('form'); setResult(null); }}
           className={`px-4 py-2 font-medium transition-colors ${
             inputMode === 'form'
               ? 'border-b-2 border-primary text-primary'
@@ -548,7 +552,7 @@ export default function AlgorithmSelector({ onHome }) {
           Manual Input
         </button>
         <button
-          onClick={() => setInputMode('yaml')}
+          onClick={() => { setInputMode('yaml'); setResult(null); }}
           className={`px-4 py-2 font-medium transition-colors ${
             inputMode === 'yaml'
               ? 'border-b-2 border-primary text-primary'
@@ -558,7 +562,7 @@ export default function AlgorithmSelector({ onHome }) {
           YAML Upload
         </button>
         <button
-          onClick={() => setInputMode('custom')}
+          onClick={() => { setInputMode('custom'); setResult(null); }}
           className={`px-4 py-2 font-medium transition-colors ${
             inputMode === 'custom'
               ? 'border-b-2 border-primary text-primary'

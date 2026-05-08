@@ -10,12 +10,11 @@ const getAuthToken = () => localStorage.getItem('token');
 // Create axios instance with auth header
 const createAuthClient = () => {
   const token = getAuthToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
   return axios.create({
     baseURL: `${API_BASE}/api`,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
+    headers
   });
 };
 
