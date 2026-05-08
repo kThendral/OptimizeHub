@@ -195,7 +195,7 @@ async def run_optimization(
                 best_fitness=result.get("best_fitness", 0),
                 best_solution=result.get("best_solution", []),
                 convergence_curve=result.get("convergence_curve", []),
-                iterations_completed=result.get("iterations_run", 0),
+                iterations_completed=result.get("iterations_completed", 0),
                 execution_time=result.get("execution_time", 0),
                 problem_definition=problem_dict,
                 algorithm_parameters=request.params,
