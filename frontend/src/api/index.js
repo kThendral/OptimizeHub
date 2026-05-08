@@ -58,9 +58,13 @@ export async function fetchAlgorithmDetails(name) {
  * }
  */
 export async function executeAlgorithm(payload) {
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const res = await fetch(`${API_BASE}/api/optimize`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(payload)
   });
   const data = await res.json();

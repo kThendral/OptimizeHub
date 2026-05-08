@@ -79,12 +79,16 @@ const CustomFitnessUpload = () => {
       formData.append('config_file', configFile);
 
       // Send request to backend
+      const token = localStorage.getItem('token');
+      const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+
       const response = await axios.post(
         `${API_BASE}/api/optimize/custom`,
         formData,
         {
           headers: {
             'Content-Type': 'multipart/form-data',
+            ...authHeaders,
           },
           timeout: 35000, // 35 seconds (slightly more than backend timeout)
         }
